@@ -69,7 +69,7 @@ namespace WeeboxSync {
         //Deletes all link to and files from a bundle and its folder representation
         public void DeleteBundleFromFS(Bundle bundle)
         {
-            DirectoryInfo dirInfo = new DirectoryInfo(bundle.LocalId);
+            DirectoryInfo dirInfo = new DirectoryInfo(bundle.localId);
 
             foreach (var file in dirInfo.GetFiles())
             {
@@ -102,3 +102,4 @@ namespace WeeboxSync {
         }
     }
 }
+

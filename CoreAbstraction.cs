@@ -1,11 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.ServiceModel;
+using System.ServiceModel.Web;
+using System.Text;
 using Microsoft.Http;
 using System.Net;
 using System.Xml.Linq;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Linq; 
+using System.Linq;
+using Ionic.Zip;
+using Microsoft.Http.Headers;
+using System.IO;
 namespace WeeboxSync {
     public class ConnectionNotSet : Exception {
 
@@ -20,22 +26,26 @@ namespace WeeboxSync {
 
     }
 
+
     public class CoreAbstraction {
         public HttpClient _client;
         private ConnectionInfo _conInfo; 
-        private bool _connection=false; 
+        private bool _connection=false;
+        public string tmpPath  { get; set; }
+
         public void SetConnection(ConnectionInfo con) {
             this._conInfo = con;
             if (!con.useProxy){
-                _client = new HttpClient(con.address.ToString() + "core/");
+                _client = new HttpClient(con.address.ToString() );
                 _client.TransportSettings.Credentials = new NetworkCredential(con.user.user, con.user.pass); 
-
+                _client.TransportSettings.Proxy = new WebProxy("http://proxy.uminho.pt:3128");
                 //TODO test connection , test user credentials 
                 //TODO set proxy if any 
                 //TODO check possible exceptions in those methods ; 
                 _connection = true; 
             }
         }
+
 
         /**
          * Returns null if no scheme 
@@ -48,15 +58,19 @@ namespace WeeboxSync {
             String[] planos = schemes.Split('\n');
             List<Scheme> lista = new List<Scheme>();
             for (int i = 0; i < planos.Length; i++) {
-                Scheme s = getScheme(planos[i]);
-                if (s != null) { // TODO - necessary? 
-                    lista.Add(s);
+
+                if (planos[i] != ""){
+                    Scheme s = getScheme(planos[i]);
+                    if (s != null ) { // TODO - necessary? 
+                        lista.Add(s);
+                    }
                 }
             }
             return (lista.Count != 0) ? lista : null; 
         }
 
         public  Scheme getScheme(string rootID){
+
             //TODO - check every , see getSchemes comments
             HttpResponseMessage resp = _client.Get("manager/api?operation=getThesaurus&thesaurus=" + rootID);
             resp.EnsureStatusIsSuccessful();
@@ -71,7 +85,7 @@ namespace WeeboxSync {
             Tag rootTag = new Tag(raiz.Value, raiz.Value, "Q2W1C42bT6");
             Scheme scheme = new Scheme(s.ToString(), "Q2W1C42bT6", rootTag);
             //<id,label> 
-            List<Tuple<String, String>> lista = _getFirstLevelChilds(rootElement);
+            IEnumerable<Tuple<string, string>> lista = _getFirstLevelChilds(rootElement);
 
             foreach (Tuple<String, String> tup in lista) {
                 string myPath = rootTag.Path + "\\" + tup.Item2;
@@ -87,14 +101,46 @@ namespace WeeboxSync {
         public List<Bundle> GetAllBundles() {
             throw new System.Exception("Not implemented");
         }
-        public List<String> GetAllBundlesList() {
-            throw new System.Exception("Not implemented");
+
+        /// <summary>
+        /// Gets all Bundles specified as owned by the user established in this class
+        /// </summary>
+        /// <returns></returns>
+        public List<String> GetAllBundlesList(){
+
+            HttpResponseMessage resp =
+                _client.Get("core/bundle/?operation=searchRetrieve&version=1.1&query=bundle.owner+=+%22" + this._conInfo.user.user + "%22"); 
+//                _client.Get("core/bundle/?operation=searchRetrieve&version=1.1&query=bundle.owner+=+%22" +
+//                            this._conInfo.user + "+%22");
+            resp.EnsureStatusIsSuccessful(); 
+            Stream s = resp.Content.ReadAsStream();
+            // TODO - validate xml answer. 
+            XDocument classifications = XDocument.Load(s);
+            XElement rootElement = classifications.Root;
+
+
+            foreach (XElement record in rootElement.Descendants()){
+                Console.Out.WriteLine(record.Name +" --------->" + record.Value);
+                     foreach (XAttribute atri in record.Attributes()){
+  //                  if (atri.Name == "key=bundle.version") {
+
+                        Console.Out.WriteLine((atri.Value));
+                    }
+    //                else Console.Out.WriteLine(atri.Name); 
+                }
+            
+
+
+            Console.ReadLine();  
+            return new List<string>();
+
+
         }
 
         public MetaData GetMetaFromBundle(String bundleid){
             try {
 
-                HttpResponseMessage resp = _client.Get("bundle/" + bundleid + "?operation=retrieveBundleMetadata");
+                HttpResponseMessage resp = _client.Get("core/bundle/" + bundleid + "?operation=retrieveBundleMetadata");
                 resp.EnsureStatusIsSuccessful();
                 
                 Stream s = resp.Content.ReadAsStream(); 
@@ -115,7 +161,7 @@ namespace WeeboxSync {
 
         public MetaData GetAllMetaFromBundle(String bundleid){
             try {
-                HttpResponseMessage resp = _client.Get("bundle/" + bundleid + "?operation=retrieveAllMetadata");
+                HttpResponseMessage resp = _client.Get("core/bundle/" + bundleid + "?operation=retrieveAllMetadata");
                 resp.EnsureStatusIsSuccessful();
 
                 Stream s = resp.Content.ReadAsStream();
@@ -135,21 +181,78 @@ namespace WeeboxSync {
         }
 
         public Bundle getBundle(string bundleId){
-            Bundle toBeBundle = new Bundle();
-            toBeBundle.Meta = GetAllMetaFromBundle(bundleId); 
-            toBeBundle.WeeId = bundleId;
+            Bundle toBeBundle = new Bundle {meta = GetAllMetaFromBundle(bundleId), weeId = bundleId};
             List<String> tags = new List<String>(); 
-            if (toBeBundle.Meta.keyValueData.ContainsKey("user.0")){
+            if (toBeBundle.meta.keyValueData.ContainsKey("user.0")){
                 string toParse = "";
-                toBeBundle.Meta.keyValueData.TryGetValue("user.0", out toParse);
+                toBeBundle.meta.keyValueData.TryGetValue("user.0", out toParse);
                 String[] strs =Regex.Split(toParse, ";;"); 
                 foreach (String st in strs){
                     String[] tagss = Regex.Split(st, "::");
                     tags.Add(tagss.Last<String>().Trim());
                 }
             }
-            return null; 
+
+            HttpResponseMessage resp = _client.Get("core/bundle/" + bundleId +"?encodeFileName=true" );
+            //      resp.EnsureStatusIsSuccessful();
+            //has files?
+
+            if (toBeBundle.meta.keyValueData.ContainsKey("bundle.data.files.id")){
+                int num_files;
+                string toParse = "";
+                bool val = toBeBundle.meta.keyValueData.TryGetValue("bundle.data.files.id", out toParse);
+                num_files = toParse.Count(p => p == ',') + 1;
+
+                //zip case
+                if (num_files > 1){
+                    Stream files = resp.Content.ReadAsStream();
+                    string path = tmpPath + "\\" + bundleId + ".zip";
+
+                    if (File.Exists(path)){
+                        File.Delete(path);
+                    }
+
+
+                    FileStream f = File.OpenWrite(path);
+                    files.CopyTo(f);
+                    f.Flush();
+                    f.Close();
+                    List<Ficheiro> ficheiros = new List<Ficheiro>();
+
+                    using (ZipFile zip = ZipFile.Read(path)){
+                        zip.ExtractAll(tmpPath);
+                        ficheiros.AddRange(
+                            zip.EntryFileNames.Select(entrada => new Ficheiro(tmpPath + "\\" + entrada, bundleId, true)));
+                    }
+                }
+                else{
+                    //normal file case. 
+
+                    if (resp.Headers.ContainsKey("encoded.filename")){
+                        String s = resp.Headers["encoded.filename"];
+                        Stream files = resp.Content.ReadAsStream();
+                        string path = tmpPath + "\\" + s;
+
+                        if (File.Exists(path)){
+                            File.Delete(path);
+                        }
+
+
+                        FileStream f = File.OpenWrite(path);
+                        files.CopyTo(f);
+                        f.Flush();
+                        f.Close();
+                        List<Ficheiro> ficheiros = new List<Ficheiro>();
+                        ficheiros.Add(new Ficheiro(path, bundleId, true));
+                    }
+                    else{
+                        Console.WriteLine(("could not read file name"));
+                    }
+                }
+            }
+            return toBeBundle;
         }
+
 
         public List<Ficheiro> GetFicheiros(String bundleid) {
             throw new System.Exception("Not implemented");
@@ -170,12 +273,14 @@ namespace WeeboxSync {
             throw new System.Exception("Not implemented");
         }
 
-        private  String _getRDFName(String s) { return "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}" + s; }
-        private  String _getSkoName(String s) { return "{http://www.w3.org/2004/02/skos/core#}" + s; }
-
+        private static String _getRDFName(String s) { return "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}" + s; }
+        private static String _getSkoName(String s) { return "{http://www.w3.org/2004/02/skos/core#}" + s; }
+        private static String _getLocName(String s){
+            return "{http://www.loc.gov/zing/srw/}" + s;
+        }
 
         private  void _buildSubTree(XElement rootElement, Tag parent, Scheme scheme) {
-            List<Tuple<String, String>> childs = _getChilds(rootElement, parent.WeeId);
+            IEnumerable<Tuple<string, string>> childs = _getChilds(rootElement, parent.WeeId);
             foreach (Tuple<String, String> tuplo in childs) {
                 string path = parent.Path + "\\" + tuplo.Item2; // children path
                 Tag children = new Tag(tuplo.Item2, path, tuplo.Item1);
@@ -196,7 +301,7 @@ namespace WeeboxSync {
             return new Tuple<String, String>(id, label);
         }
 
-        private  List<Tuple<String, String>> _getFirstLevelChilds(XElement root) {
+        private  IEnumerable<Tuple<string, string>> _getFirstLevelChilds(XElement root) {
             List<Tuple<String, String>> lista = new List<Tuple<String, String>>();
 
             foreach (XElement elem in root.Descendants(_getSkoName("Concept"))) {
@@ -208,7 +313,7 @@ namespace WeeboxSync {
         }
 
 
-        private  List<Tuple<String, String>> _getChilds(XElement root, string parent) {
+        private  IEnumerable<Tuple<string, string>> _getChilds(XElement root, string parent) {
             List<Tuple<String, String>> lista = new List<Tuple<String, String>>();
             foreach (XElement con in root.Descendants(_getSkoName("Concept"))) {
                 foreach(XElement elem in con.Descendants(_getSkoName("broader"))){
