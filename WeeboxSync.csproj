@@ -36,7 +36,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Ionic.Zip">
-      <HintPath>.\Ionic.Zip.dll</HintPath>
+      <HintPath>..\Assemblies\Ionic.Zip.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Http">
       <HintPath>..\..\..\..\..\..\Program Files\Microsoft WCF REST\WCF REST Starter Kit Preview 2\Assemblies\Microsoft.Http.dll</HintPath>
@@ -67,6 +67,7 @@
     <Compile Include="FileSystemAbstraction.cs" />
     <Compile Include="MetaData.cs" />
     <Compile Include="MetaInfoPresentation.cs" />
+    <Compile Include="Registo.cs" />
     <Compile Include="Scheme.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -78,6 +79,17 @@
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="IWshRuntimeLibrary">
+      <Guid>{F935DC20-1CF0-11D0-ADB9-00C04FD58A0B}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

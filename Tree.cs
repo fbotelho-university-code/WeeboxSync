@@ -121,12 +121,17 @@ namespace WeeboxSync {
             return null;
         }
 
+        /// <summary>
+        /// returns null in case of Tags being the T"/>"/>
+        /// </summary>
+        /// <param name="k"></param>
+        /// <returns></returns>
         public T find(string k) {
             if (this.key.Equals(k)) return this.value;
 
             foreach (Node<T> nd in _children) {
-                T back;
-                if (!(back = nd.find(k)).Equals(default(T))) return back;
+                T back= nd.find(k);
+                if (back != null) return back; 
             }
             return default(T);
         }

@@ -21,7 +21,7 @@ namespace WeeboxSync {
                 // Where the shortcut should point to
                 myShortcut.TargetPath = origPath;
                 // Description for the shortcut
-                myShortcut.Description = "Launch My Application";
+                myShortcut.Description = "bundle";
                 // Location for the shortcut's icon
                 //MyShortcut.IconLocation = MediaTypeNames.Application.StartupPath + @"\app.ico";
                 // Create the shortcut at the given path
@@ -100,9 +100,10 @@ namespace WeeboxSync {
             //TODO - how to get MD5 from file stream?
         }
 
+
         public void DeleteFicheiroFromFS(String fpath)
         {
-            File.Delete(fpath);
+//            File.Delete(fpath);
         }
 
         //Diferencas??
