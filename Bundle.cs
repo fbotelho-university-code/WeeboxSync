@@ -3,9 +3,10 @@ using System.Collections.Generic;
 namespace WeeboxSync {
 
     public class Bundle {
-        public string weeId { get; set; }
-        public List<String> weeTags { get; set; }
-        public MetaData meta { get ; set ; }  
+        public string LocalId { get; set; }
+        public string WeeId { get; set; }
+        public List<String> WeeTags { get; set; }
+        public MetaData Meta { get ; set ; }  
 
     }
 

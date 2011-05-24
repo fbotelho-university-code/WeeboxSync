@@ -51,3 +51,6 @@ _ReSharper*/
 
 # Office Temp Files
 ~$*
+*.csproj
+WeeboxSync.csproj
+*.csproj

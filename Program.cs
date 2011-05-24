@@ -21,6 +21,8 @@ namespace WeeboxSync {
 
     public class Testes {
         public static void Main() {
+            System.Console.WriteLine("cenas delvjbnln");
+            System.Console.ReadLine();
          /*   ConnectionInfo con = new ConnectionInfo(new Utilizador("admin", "4dm1n"), "http://photo.weebox.keep.pt");
             CoreAbstraction weebox = new CoreAbstraction();
             weebox.SetConnection(con);

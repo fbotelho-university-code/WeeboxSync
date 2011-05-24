@@ -136,12 +136,12 @@ namespace WeeboxSync {
 
         public Bundle getBundle(string bundleId){
             Bundle toBeBundle = new Bundle();
-            toBeBundle.meta = GetAllMetaFromBundle(bundleId); 
-            toBeBundle.weeId = bundleId;
+            toBeBundle.Meta = GetAllMetaFromBundle(bundleId); 
+            toBeBundle.WeeId = bundleId;
             List<String> tags = new List<String>(); 
-            if (toBeBundle.meta.keyValueData.ContainsKey("user.0")){
+            if (toBeBundle.Meta.keyValueData.ContainsKey("user.0")){
                 string toParse = "";
-                toBeBundle.meta.keyValueData.TryGetValue("user.0", out toParse);
+                toBeBundle.Meta.keyValueData.TryGetValue("user.0", out toParse);
                 String[] strs =Regex.Split(toParse, ";;"); 
                 foreach (String st in strs){
                     String[] tagss = Regex.Split(st, "::");
