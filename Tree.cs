@@ -63,6 +63,7 @@ namespace WeeboxSync {
         }
     }
 
+
     public class Node<T> {
         public void printNode(int level) {
             for (int i =0 ; i < level *3 ; i++){
@@ -92,7 +93,7 @@ namespace WeeboxSync {
             return true;
         }
 
-        public bool Equals(Object n) {
+        public override bool Equals(Object n) {
             if (n == null) return false;
             if (n == this) return true;
             if (n.GetType() != this.GetType()) return false;

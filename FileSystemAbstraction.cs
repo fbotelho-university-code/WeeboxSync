@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.AccessControl;
 namespace WeeboxSync {
 
@@ -82,7 +83,7 @@ namespace WeeboxSync {
         //Deletes all link to and files from a bundle and its folder representation
         public void DeleteBundleFromFS(Bundle bundle)
         {
-            DirectoryInfo dirInfo = new DirectoryInfo(bundle.LocalId);
+            DirectoryInfo dirInfo = new DirectoryInfo(bundle.localId);
 
             foreach (var file in dirInfo.GetFiles())
             {
@@ -106,3 +107,4 @@ namespace WeeboxSync {
 
     }
 }
+
