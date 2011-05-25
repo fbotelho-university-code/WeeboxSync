@@ -5,7 +5,10 @@ using System.Collections.Generic;
 using System.IO;
 
 namespace WeeboxSync {
-    public class WeeboxSync {
+
+
+    public class WeeboxSync
+    {
         public ConnectionInfo connection_info { get; set;  }
         private  long bundle_serial_generator =0;
         private IEnumerable<Scheme> scheme; 

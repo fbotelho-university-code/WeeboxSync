@@ -7,6 +7,7 @@
 *.ncb
 *.log
 *.pdb
+
 #OS junk files
 [Tt]humbs.db
 *.DS_Store
@@ -51,6 +52,9 @@ _ReSharper*/
 
 # Office Temp Files
 ~$*
+
+#Visual Studio Project Files
 *.csproj
-WeeboxSync.csproj
-*.csproj
+
+*.bak
+Resources/weebox_logo_trans.png

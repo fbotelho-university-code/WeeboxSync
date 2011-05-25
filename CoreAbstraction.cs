@@ -48,7 +48,7 @@ namespace WeeboxSync {
 
 
         /**
-         * Returns null if no scheme 
+         * Returns null if no scheme is returned
          */
         public List<Scheme> getSchemesFromServer(){
             //TODO - ALOT , exceptions , null values , empty values, server errors , validate xml input in these and look a like methods
