@@ -6,13 +6,6 @@ using System.Collections;
 namespace WeeboxSync {
     public class DataBaseAbstraction {
 
-        public Bundle getBundle(string id){
-            throw new System.Exception("Not implemented");
-        }
-
-        public void DeleteBundle(String bundleId) {
-            throw new System.Exception("Not implemented");
-        }
         public void GetClassificationScheme() {
             throw new System.Exception("Not implemented");
         }
@@ -22,26 +15,153 @@ namespace WeeboxSync {
         public void UpdateClassificationScheme(Scheme scheme) {
             throw new System.Exception("Not implemented");
         }
-        public List<String> GetAllBundles() {//todas as tabelas
+        public void DeleteBundle(String bundleId)
+        {
             throw new System.Exception("Not implemented");
         }
-        public void RmBundle(String bundleId) {
-            throw new System.Exception("Not implemented");
+
+
+
+
+
+
+        public List<Bundle> GetAllBundles()
+        {//todas as tabelas
+            Bundle bundle = new Bundle();
+            List<Bundle> lista = new List<Bundle>();
+            string ConnectionString = "Data Source=(local);Integrated Security=True";
+            SqlConnection con = new SqlConnection(ConnectionString);
+            try
+            {
+                SqlCommand query = new SqlCommand("SELECT * FROM bundle", con);
+                SqlDataReader reader = query.ExecuteReader();
+                while (reader.Read()){
+                    bundle = getBundle(reader.GetString(0));
+                    lista.Add(bundle);
+                }
+                con.Open();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            try
+            {
+                con.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            return lista;
         }
 
+        public Bundle getBundle(string id)
+        {
+            Bundle bundle = new Bundle();
+            string ConnectionString = "Data Source=(local);Integrated Security=True";
+            SqlConnection con = new SqlConnection(ConnectionString);
+            try
+            {
+                con.Open();
+                SqlCommand query = new SqlCommand("SELECT * FROM bundle WHERE id = '" + id + "'", con);
+                SqlDataReader reader = query.ExecuteReader();
+                while (reader.Read())
+                {
+                    bundle.localId = reader.GetString(0);
+                    bundle.weeId = reader.GetString(1);
+                }
+                query = new SqlCommand("SELECT nome_ficheiro FROM last_updated_bundles WHERE bundle_version_ID = '" + id + "'", con);
+                reader = query.ExecuteReader();
+                while (reader.Read())
+                {
+                    List<>
+                    //bundle.filesPath -> adicionar path aos ficheiros
+                }
+                query = new SqlCommand("SELECT * FROM ficheiro where bundleID = '"+id+"'", con);
+                reader = query.ExecuteReader();
+                while (reader.Read())
+                {
+                    //bundle.filesPath -> adicionar md5 e bundleID aos ficheiros
+                }
+                query = new SqlCommand("SELECT * FROM tag where bundleID = '" + id + "'", con);
+                reader = query.ExecuteReader();
+                while (reader.Read())
+                {
+                    bundle.weeTags.Add(reader.GetString(1)); // so adiciono 1???????
+                }
+                query = new SqlCommand("SELECT * FROM metadata where bundleID = '" + id + "'", con);
+                reader = query.ExecuteReader();
+                while (reader.Read())
+                {
+                    bundle.meta.keyValueData.Add(reader.GetString(1), reader.GetString(2)); // so adiciono 1????
+                }
+                reader.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            try
+            {
+                con.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            return bundle;
+        }
 
-
-
-
-
-
-
-
-
+        public void SaveBundle(Bundle bundle)
+        {
+            string ConnectionString = "Data Source=(local);Integrated Security=True";
+            SqlConnection con = new SqlConnection(ConnectionString);
+            try
+            {
+                con.Open();
+                SqlCommand query = new SqlCommand("INSERT INTO bundle (id, version_ID) VALUES ('" + bundle.localId + "', '" + bundle.weeId + "')", con);
+                query.ExecuteNonQuery();
+                foreach (Ficheiro f in bundle.filesPath)
+                {
+                    query = new SqlCommand("INSERT INTO last_updated_bundles (bundle_version_ID, file_ID, nome_ficheiro) VALUES ('" + bundle.localId + "', '" + bundle.weeId + "', '" + f.path + "')", con);
+                    query.ExecuteNonQuery();
+                }
+                foreach (Ficheiro f2 in bundle.filesPath)
+                {
+                    query = new SqlCommand("INSERT INTO ficheiro (id, BundleID, nome_ficheiro) VALUES ('" + f2.md5 + "', '" + bundle.localId + "', '" + f2.path + "')", con);
+                    query.ExecuteNonQuery();
+                }
+                foreach (KeyValuePair<String, String> kvp in bundle.meta.keyValueData)
+                {
+                    String v1 = kvp.Key;
+                    String v2 = kvp.Value;
+                    query = new SqlCommand("INSERT INTO metadata (BundleID, field_name, field_data) VALUES ('" + bundle.localId + "', '" + v1 + "', '" + v2 + "')", con);
+                    query.ExecuteNonQuery();
+                }
+                foreach (String tag in bundle.weeTags)
+                {
+                    query = new SqlCommand("INSERT INTO tags (BundleID, tag) VALUES ('" + bundle.localId + "', '" + tag + "')", con);
+                    query.ExecuteNonQuery();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            try
+            {
+                con.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
 
         public IList<Ficheiro> GetFicheirosIDS(String bundleId) {//todos os ficheiros k tem o bundleID -------->>> e o id-> outro primary key. nao interessa????
             Ficheiro file = new Ficheiro();
-            IList<Ficheiro> lista;
+            List<Ficheiro> lista = new List<Ficheiro>();
             string ConnectionString = "Data Source=(local);Integrated Security=True";
             SqlConnection con = new SqlConnection(ConnectionString);
             try
@@ -102,7 +222,7 @@ namespace WeeboxSync {
             }
         }
         
-        public void RmFicheiroInfo(String Ficheiro, String bundleID) { //elimino tambem do bundle????????????
+        public void RmFicheiroInfo(String Ficheiro, String bundleID) {
             string ConnectionString = "Data Source=(local);Integrated Security=True";
             SqlConnection con = new SqlConnection(ConnectionString);
             try
@@ -110,52 +230,6 @@ namespace WeeboxSync {
                 con.Open();
                 SqlCommand query = new SqlCommand("delete from ficheiro where id = '"+Ficheiro+"' and bundleID = '"+bundleID+"'", con);
                 query.ExecuteNonQuery();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-            try
-            {
-                con.Close();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-        }
-
-        public void SaveBundle(Bundle bundle)
-        {
-            string ConnectionString = "Data Source=(local);Integrated Security=True";
-            SqlConnection con = new SqlConnection(ConnectionString);
-            try
-            {
-                con.Open();
-                SqlCommand query = new SqlCommand("INSERT INTO bundle (id, version_ID) VALUES ('" + bundle.localId + "', '" + bundle.weeId + "')", con);
-                query.ExecuteNonQuery();
-                foreach (Ficheiro f in bundle.filesPath)
-                {
-                    query = new SqlCommand("INSERT INTO last_updated_bundles (bundle_version_ID, file_ID, filename) VALUES ('" + bundle.localId + "', '" + bundle.weeId + "', '" + f.path + "')", con);
-                    query.ExecuteNonQuery();
-                }
-                foreach (Ficheiro f2 in bundle.filesPath)
-                {
-                    query = new SqlCommand("INSERT INTO ficheiro (id, BundleID, filename) VALUES ('" + f2.md5 + "', '" + bundle.localId + "', '" + f2.path + "')", con);
-                    query.ExecuteNonQuery();
-                }
-                foreach (KeyValuePair<String, String> kvp in bundle.meta.keyValueData)
-                {
-                    String v1 = kvp.Key;
-                    String v2 = kvp.Value;
-                    query = new SqlCommand("INSERT INTO metadata (BundleID, field_name, field_data) VALUES ('" + bundle.localId + "', '" + v1 + "', '" + v2 + "')", con);
-                    query.ExecuteNonQuery();
-                }
-                foreach (String tag in bundle.weeTags)
-                {
-                    query = new SqlCommand("INSERT INTO tags (BundleID, tag) VALUES ('" + bundle.localId + "', '" + tag + "')", con);
-                    query.ExecuteNonQuery();
-                }
             }
             catch (Exception e)
             {
@@ -255,18 +329,18 @@ namespace WeeboxSync {
             try
             {
                 con.Open();
+                SqlCommand query = new SqlCommand("SELECT * FROM historico WHERE op_id = '" + op_id + "'", con);
+                SqlDataReader reader = query.ExecuteReader();
+                while (reader.Read())
+                {
+                    reg = new Registo(op_id, (DateTime)reader.GetDateTime(7), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetString(6));
+                }
+                reader.Close();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
             }
-            SqlCommand query = new SqlCommand("SELECT * FROM historico WHERE op_id = '" + op_id + "'", con);
-            SqlDataReader reader = query.ExecuteReader();
-            while (reader.Read())
-            {
-                reg = new Registo(op_id, (DateTime) reader.GetDateTime(7), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetString(6));
-            }
-            reader.Close();
             try
             {
                 con.Close();
