@@ -4,7 +4,10 @@ using System.Collections.Generic;
 using System.IO;
 
 namespace WeeboxSync {
-    public class WeeboxSync {
+
+
+    public class WeeboxSync
+    {
         public ConnectionInfo connection_info { get; set;  }
         private  String root_folder = null; 
         public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
