@@ -59,5 +59,12 @@ namespace WeeboxSync.Properties {
                 resourceCulture = value;
             }
         }
+        
+        internal static System.Drawing.Bitmap weebox_logo_trans {
+            get {
+                object obj = ResourceManager.GetObject("weebox_logo_trans", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }

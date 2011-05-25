@@ -73,6 +73,12 @@
     <Compile Include="DataBaseAbstraction.cs" />
     <Compile Include="Ficheiro.cs" />
     <Compile Include="FileSystemAbstraction.cs" />
+    <Compile Include="FolderChooser.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FolderChooser.Designer.cs">
+      <DependentUpon>FolderChooser.cs</DependentUpon>
+    </Compile>
     <Compile Include="LoginWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -87,7 +93,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Registo.cs" />
     <Compile Include="Scheme.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -117,6 +122,9 @@
   <ItemGroup>
     <EmbeddedResource Include="ConnectionInfoEditor.resx">
       <DependentUpon>ConnectionInfoEditor.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FolderChooser.resx">
+      <DependentUpon>FolderChooser.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="LoginWindow.resx">
       <DependentUpon>LoginWindow.cs</DependentUpon>
