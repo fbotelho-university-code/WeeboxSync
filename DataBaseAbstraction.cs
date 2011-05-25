@@ -94,7 +94,7 @@ namespace WeeboxSync {
             try
             {
                 con.Open();
-               // SqlCommand query = new SqlCommand("INSERT INTO utilizador (username, password, server_address, server_port, proxy) VALUES ('" + conI.user.user + "', '" + conI.user.pass + "', '" + conI.address.Scheme + "', '" + conI.address.Port + "', '" + conI.proxy.Scheme + "')", con);
+            //    SqlCommand query = new SqlCommand("INSERT INTO utilizador (username, password, server_address, server_port, proxy) VALUES ('" + conI.user.user + "', '" + conI.user.pass + "', '" + conI+ "', '" + conI.address.Port + "', '" + conI.proxy.Scheme + "')", con);
 //                query.ExecuteNonQuery();
             }
             catch (Exception e)

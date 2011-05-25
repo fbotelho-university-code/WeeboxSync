@@ -8,6 +8,7 @@ namespace WeeboxSync {
               /// <summary>
                     //TODO - how to rep filestream?
 
+
     /// method for getting a files MD5 hash, say for
     /// a checksum operation
     /// </summary>
