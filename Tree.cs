@@ -116,7 +116,7 @@ namespace WeeboxSync {
             }
             foreach (Node<T> t in _children) {
                 List<T> l = t.findChilds(k);
-                if (t != null) return l;
+                if (l != null) return l;
             }
             return null;
         }

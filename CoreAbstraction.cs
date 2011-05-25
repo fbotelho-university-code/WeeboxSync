@@ -33,27 +33,35 @@ namespace WeeboxSync {
 
         public void SetConnection(ConnectionInfo con) {
             this._conInfo = con;
-            if (!con.useProxy){
                 _client = new HttpClient(con.address.ToString() );
                 _client.TransportSettings.Credentials = new NetworkCredential(con.user.user, con.user.pass); 
-         //        _client.TransportSettings.Proxy = new WebProxy("http://proxy.uminho.pt:3128");
-
                 //TODO test connection , test user credentials 
                 //TODO set proxy if any 
                 //TODO check possible exceptions in those methods ; 
                 _connection = true; 
+            if (con.useProxy){
+//                _client.TransportSettings.Proxy = new WebProxy("proxy.uminho.pt:3128");
             }
         }
-
-
 
         /**
          * Returns null if no scheme is returned
          */
         public List<Scheme> getSchemesFromServer(){
             //TODO - ALOT , exceptions , null values , empty values, server errors , validate xml input in these and look a like methods
-            HttpResponseMessage resp = _client.Get("manager/api?operation=getThesauri");
-            HttpResponseMessage a = resp.EnsureStatusIsSuccessful();
+            HttpResponseMessage resp = null;
+                bool bo = true;
+                while (bo){
+                    try{
+                        resp = _client.Get("manager/api?operation=getThesauri");
+                        bo = false;
+                    }
+                    catch (HttpStageProcessingException e){
+                        continue;
+                    }
+                }
+
+            resp.EnsureStatusIsSuccessful();
             String schemes = resp.Content.ReadAsString();
             String[] planos = schemes.Split('\n');
             List<Scheme> lista = new List<Scheme>();
@@ -70,7 +78,19 @@ namespace WeeboxSync {
 
         public  Scheme getScheme(string rootID){
             //TODO - check every , see getSchemes comments
-            HttpResponseMessage resp = _client.Get("manager/api?operation=getThesaurus&thesaurus=" + rootID);
+             HttpResponseMessage resp = null;
+                bool bo = true;
+                while (bo){
+                    try{
+                resp  = _client.Get("manager/api?operation=getThesaurus&thesaurus=" + rootID);
+                        bo = false;
+                    }
+                    catch (HttpStageProcessingException e){
+                        continue;
+                    }
+                }
+
+            
             resp.EnsureStatusIsSuccessful();
             Stream s = resp.Content.ReadAsStream();
             // TODO - validate xml answer. 
@@ -104,12 +124,20 @@ namespace WeeboxSync {
         /// </summary>
         /// <returns>Null if none present</returns>
         public IEnumerable<String> GetAllBundlesList(){
+            HttpResponseMessage resp = null;
+                bool bo = true;
+                while (bo){
+                    try{
+                        resp =   _client.Get("core/bundle/?operation=searchRetrieve&version=1.1&query=bundle.owner+=+%22" +
+                                this._conInfo.user.user + "%22");
+                        bo = false;
+                    }
+                    catch (HttpStageProcessingException e){
+                        continue;
+                    }
+                }
 
-            HttpResponseMessage resp =
-                _client.Get("core/bundle/?operation=searchRetrieve&version=1.1&query=bundle.owner+=+%22" +
-                            this._conInfo.user.user + "%22");
-//                _client.Get("core/bundle/?operation=searchRetrieve&version=1.1&query=bundle.owner+=+%22" +
-//                            this._conInfo.user + "+%22");
+            
             resp.EnsureStatusIsSuccessful();
             Stream s = resp.Content.ReadAsStream();
             // TODO - validate xml answer. 
@@ -134,10 +162,22 @@ namespace WeeboxSync {
         }
 
         public MetaData GetMetaFromBundle(String bundleid){
-            try {
+            try{
 
-                HttpResponseMessage resp = _client.Get("core/bundle/" + bundleid + "?operation=retrieveBundleMetadata");
-                resp.EnsureStatusIsSuccessful();
+                HttpResponseMessage resp = null;
+                bool bo = true;
+                while (bo){
+                    try{
+                    resp =
+                        _client.Get("core/bundle/" + bundleid + "?operation=retrieveBundleMetadata");
+                        bo = false;
+                    }
+                    catch (HttpStageProcessingException e){
+                        continue;
+                    }
+                }
+
+                
                 
                 Stream s = resp.Content.ReadAsStream(); 
                 XDocument meta = XDocument.Load(s);
@@ -156,8 +196,20 @@ namespace WeeboxSync {
         }
 
         public MetaData GetAllMetaFromBundle(String bundleid){
-            try {
-                HttpResponseMessage resp = _client.Get("core/bundle/" + bundleid + "?operation=retrieveAllMetadata");
+            try{
+            HttpResponseMessage resp = null;
+                bool bo = true;
+                while (bo){
+                    try{
+                        resp = _client.Get("core/bundle/" + bundleid + "?operation=retrieveAllMetadata");
+                        bo = false;
+                    }
+                    catch (HttpStageProcessingException e){
+                        continue;
+                    }
+                }
+            
+
                 resp.EnsureStatusIsSuccessful();
 
                 Stream s = resp.Content.ReadAsStream();
@@ -178,20 +230,33 @@ namespace WeeboxSync {
 
         public Bundle getBundle(string bundleId, string downloadPath){
             Bundle toBeBundle = new Bundle {meta = GetAllMetaFromBundle(bundleId), weeId = bundleId};
-            List<String> tags = new List<String>(); 
+            List<String> tags = new List<String>();
             if (toBeBundle.meta.keyValueData.ContainsKey("user.0")){
                 string toParse = "";
                 toBeBundle.meta.keyValueData.TryGetValue("user.0", out toParse);
-                String[] strs =Regex.Split(toParse, ";;"); 
+                String[] strs = Regex.Split(toParse, ";;");
                 foreach (String st in strs){
                     String[] tagss = Regex.Split(st, "::");
                     tags.Add(tagss.Last<String>().Trim());
                 }
-                toBeBundle.weeTags = tags; 
+                toBeBundle.weeTags = tags;
             }
 
-            HttpResponseMessage resp = _client.Get("core/bundle/" + bundleId +"?encodeFileName=true" );
-            //      resp.EnsureStatusIsSuccessful();
+            HttpResponseMessage resp = null;
+                bool bo = true;
+                while (bo){
+                    try{
+                        resp = 
+                            _client.Get("core/bundle/" + bundleId + "?encodeFileName=true");
+                        bo = false;
+                    }
+                    catch (HttpStageProcessingException e){
+                        continue;
+                    }
+                }
+
+
+             // resp.EnsureStatusIsSuccessful();
             //has files?
 
             if (toBeBundle.meta.keyValueData.ContainsKey("bundle.data.files.id")){
@@ -213,6 +278,7 @@ namespace WeeboxSync {
                     files.CopyTo(f);
                     f.Flush();
                     f.Close();
+
                     List<Ficheiro> ficheiros = new List<Ficheiro>();
 
                     using (ZipFile zip = ZipFile.Read(path)){

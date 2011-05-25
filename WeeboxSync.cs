@@ -18,7 +18,6 @@ namespace WeeboxSync {
         public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
         private string path_schemes= null;
         private string path_bundles= null;
-
         public WeeboxSync(){
             core = new CoreAbstraction();
             fileSystem = new FicheiroSystemAbstraction();
@@ -57,7 +56,6 @@ namespace WeeboxSync {
         public void setup(){
             core.SetConnection(this.connection_info);
             this.setDefaultRootFolder();
-
 
             IEnumerable<Scheme> schemes = core.getSchemesFromServer();
             this.scheme = schemes; 
@@ -117,23 +115,22 @@ namespace WeeboxSync {
             string path_bundle = this.path_bundles + "\\" + this.bundle_serial_generator;
             Directory.CreateDirectory(path_bundle); 
             Bundle b = core.getBundle(bundleId_server_id, path_bundle);
-
+            b.localId = "" + this.bundle_serial_generator;
+            this.bundle_serial_generator += 1; 
             if (b.weeTags != null){
-                if (_enforcePresence_of_tags(b) == false) return false;
-                b.localId = "" + this.bundle_serial_generator++;
-
+   
                 foreach (String t in b.weeTags){
                     Tag tag = this._getTagByWeeIds(t);
-//                   fileSystem.CreateROLink(path_bundle, tag.Path);
-                    fileSystem.CreateROLink(this.path_schemes + "\\" + tag.Path , path_bundle + "\\" , "" + (bundle_serial_generator-1));
+                    if (tag != null){
+                        //                   fileSystem.CreateROLink(path_bundle, tag.Path);
+                        fileSystem.CreateROLink(this.path_schemes + "\\" + tag.Path, path_bundle + "\\", b.localId);
+                    }
                 }
             }
             return true; //has created bundle
         }
 
         private bool _enforcePresence_of_tags(Bundle b){
-            int trys = 0;
-            while (trys++ <= this.MAX_SYNC_TRYS){
                 bool value = false;
                 foreach (string tagId in b.weeTags){
                     foreach (Scheme s in scheme){
@@ -141,7 +138,6 @@ namespace WeeboxSync {
                         if (value) return true;
                     }
                 }
-            }
             return false; 
         }
 

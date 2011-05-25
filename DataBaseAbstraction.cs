@@ -94,8 +94,8 @@ namespace WeeboxSync {
             try
             {
                 con.Open();
-                SqlCommand query = new SqlCommand("INSERT INTO utilizador (username, password, server_address, server_port, proxy) VALUES ('" + conI.username + "', '" + conI.password + "', '" + conI.server_address + "', '" + conI.server_port + "', '" + conI.proxy_address + "')", con);
-                query.ExecuteNonQuery();
+               // SqlCommand query = new SqlCommand("INSERT INTO utilizador (username, password, server_address, server_port, proxy) VALUES ('" + conI.user.user + "', '" + conI.user.pass + "', '" + conI.address.Scheme + "', '" + conI.address.Port + "', '" + conI.proxy.Scheme + "')", con);
+//                query.ExecuteNonQuery();
             }
             catch (Exception e)
             {
@@ -122,7 +122,7 @@ namespace WeeboxSync {
                 SqlDataReader reader = query.ExecuteReader();
                 while (reader.Read())
                 {
-                    conI = new ConnectionInfo(username, reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4));
+                    //                    conI = new ConnectionInfo(username, reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4));
                 }
                 reader.Close();
             }

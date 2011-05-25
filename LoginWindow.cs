@@ -35,8 +35,8 @@ namespace WeeboxSync
             if(weebox.connection_info == null)
                 weebox.connection_info = new ConnectionInfo();
             
-            weebox.connection_info.username = usernameTextBox.Text;
-            weebox.connection_info.password = passwordTextBox.Text;
+            weebox.connection_info.user.user = usernameTextBox.Text;
+            weebox.connection_info.user.pass = passwordTextBox.Text;
 
             //TODO test connection and credentials
             
