@@ -9,6 +9,8 @@ namespace WeeboxSync {
         public string server_address;
         public string server_port;
         public string proxy_address;
+        public long serial_genearator;
+        public string folder;
 
         public ConnectionInfo() {
             this.username = "";
@@ -16,15 +18,19 @@ namespace WeeboxSync {
             this.server_address = "";
             this.server_port = "";
             this.proxy_address = "";
+            this.serial_genearator = -1;
+            this.folder = "";
         }
 
-        public ConnectionInfo(string u, string p, string sa, string sp, string pa)
+        public ConnectionInfo(string u, string p, string sa, string sp, string pa, long sg, string f)
         {
             this.username = u;
             this.password = p;
             this.server_address = sa;
             this.server_port = sp;
             this.proxy_address = pa;
+            this.serial_genearator = sg;
+            this.folder = f;
         }
 
         public Utilizador user { get; set; }

@@ -83,5 +83,11 @@ namespace WeeboxSync {
             this.bundleId = bundleId;
             this.md5 = md5; 
         }
+
+        public Ficheiro() {
+            this.path = "";
+            this.bundleId = "";
+            this.md5 = "";
+        }
     }
 }

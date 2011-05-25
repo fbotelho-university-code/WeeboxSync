@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Collections;
 
 namespace WeeboxSync {
     public class DataBaseAbstraction {
@@ -10,10 +11,6 @@ namespace WeeboxSync {
         }
 
         public void DeleteBundle(String bundleId) {
-            throw new System.Exception("Not implemented");
-        }
-
-        public void SaveFicheiroInfo(Ficheiro Ficheiro) {
             throw new System.Exception("Not implemented");
         }
         public void GetClassificationScheme() {
@@ -31,16 +28,102 @@ namespace WeeboxSync {
         public void RmBundle(String bundleId) {
             throw new System.Exception("Not implemented");
         }
-        public void GetFicheirosIDS(String bundleId) {//todos os ficheiros k tem o bundleID
-            throw new System.Exception("Not implemented");
+
+
+
+
+
+
+
+
+
+
+
+        public IList<Ficheiro> GetFicheirosIDS(String bundleId) {//todos os ficheiros k tem o bundleID -------->>> e o id-> outro primary key. nao interessa????
+            Ficheiro file = new Ficheiro();
+            IList<Ficheiro> lista;
+            string ConnectionString = "Data Source=(local);Integrated Security=True";
+            SqlConnection con = new SqlConnection(ConnectionString);
+            try
+            {
+                con.Open();
+                SqlCommand query = new SqlCommand("select * from ficheiro where bundleID = '"+bundleId+"'", con);
+                SqlDataReader reader = query.ExecuteReader();
+                while (reader.Read())
+                {
+                    file = new Ficheiro(reader.GetString(0), reader.GetString(1), reader.GetString(2));
+                    lista.Add(file);
+                }
+                reader.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            try
+            {
+                con.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            return lista;
         }
-        public void RmFicheiroInfo(String Ficheiro, String bundleID) {//string ficheiro para eliminar na tabela ficheiro(md5), string bundleID pork tenho de alterar tabela ficheiro ->2 primareys keys
-            throw new System.Exception("Not implemented");
+
+        public void SaveFicheiroInfo(Ficheiro ficheiro)
+        {
+            string ConnectionString = "Data Source=(local);Integrated Security=True";
+            SqlConnection con = new SqlConnection(ConnectionString);
+            try
+            {
+                con.Open();
+                try
+                {
+                    SqlCommand query = new SqlCommand("INSERT INTO ficheiro (id, bundleID, nome_ficheiro) Values ('" + ficheiro.md5 + "', '" + ficheiro.bundleId + "', '" + ficheiro.path + "')", con);
+                    query.ExecuteNonQuery();
+                }
+                catch (Exception naoexistebundle)
+                {
+                    Console.WriteLine(naoexistebundle.ToString());
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            try
+            {
+                con.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
         }
-
-
-
-
+        
+        public void RmFicheiroInfo(String Ficheiro, String bundleID) { //elimino tambem do bundle????????????
+            string ConnectionString = "Data Source=(local);Integrated Security=True";
+            SqlConnection con = new SqlConnection(ConnectionString);
+            try
+            {
+                con.Open();
+                SqlCommand query = new SqlCommand("delete from ficheiro where id = '"+Ficheiro+"' and bundleID = '"+bundleID+"'", con);
+                query.ExecuteNonQuery();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            try
+            {
+                con.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
 
         public void SaveBundle(Bundle bundle)
         {
@@ -94,7 +177,7 @@ namespace WeeboxSync {
             try
             {
                 con.Open();
-                SqlCommand query = new SqlCommand("INSERT INTO utilizador (username, password, server_address, server_port, proxy) VALUES ('" + conI.username + "', '" + conI.password + "', '" + conI.server_address + "', '" + conI.server_port + "', '" + conI.proxy_address + "')", con);
+                SqlCommand query = new SqlCommand("INSERT INTO utilizador (username, password, server_address, server_port, proxy, serial_generator, folder) VALUES ('" + conI.username + "', '" + conI.password + "', '" + conI.server_address + "', '" + conI.server_port + "', '" + conI.proxy_address + "', "+conI.serial_genearator+", '"+conI.folder+"')", con);
                 query.ExecuteNonQuery();
             }
             catch (Exception e)
@@ -122,7 +205,7 @@ namespace WeeboxSync {
                 SqlDataReader reader = query.ExecuteReader();
                 while (reader.Read())
                 {
-                    conI = new ConnectionInfo(username, reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4));
+                    conI = new ConnectionInfo(username, reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetInt64(5), reader.GetString(6));
                 }
                 reader.Close();
             }
@@ -147,13 +230,13 @@ namespace WeeboxSync {
                 try
                 {
                     con.Open();
+                    SqlCommand query = new SqlCommand("INSERT INTO historico (op_id, op_type, old_bundle_id, new_bundle_id, old_file_id, new_file_id, tag, etiqueta) Values ('" + reg.op_id + "', '" + reg.op_type + "', '" + reg.old_bundle_id + "', '" + reg.new_bundle_id + "', '" + reg.old_file_id + "', '" + reg.new_file_id + "', '" + reg.tag + "', getdate())", con);
+                    query.ExecuteNonQuery();
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e.ToString());
                 }
-                SqlCommand query = new SqlCommand("INSERT INTO historico (op_id, op_type, old_bundle_id, new_bundle_id, old_file_id, new_file_id, tag, etiqueta) Values ('" + reg.op_id + "', '" + reg.op_type + "', '" + reg.old_bundle_id + "', '" + reg.new_bundle_id + "', '" + reg.old_file_id + "', '" + reg.new_file_id + "', '" + reg.tag + "', getdate())", con);
-                query.ExecuteNonQuery();
                 try
                 {
                     con.Close();
