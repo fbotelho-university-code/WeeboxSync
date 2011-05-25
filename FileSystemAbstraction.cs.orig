@@ -103,7 +103,11 @@ namespace WeeboxSync {
 
         public void DeleteFicheiroFromFS(String fpath)
         {
+<<<<<<< HEAD
             System.IO.File.Delete(fpath);
+=======
+//            File.Delete(fpath);
+>>>>>>> f1ddbc198d3108f70c779af9c7e980f9b2f32aa2
         }
 
         //Diferencas??
