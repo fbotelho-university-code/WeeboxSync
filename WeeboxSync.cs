@@ -75,7 +75,7 @@ namespace WeeboxSync {
         } 
 
         private void _createFolderForTag(Tag node, Scheme scheme){
-            Directory.CreateDirectory(this.path_schemes + "\\" + node.Path); 
+            Directory.CreateDirectory(this.path_schemes + "\\" + node.Path  + "\\"); 
             IEnumerable<Tag>   filhos   = scheme.arvore.findChilds(node.Path); 
             if (filhos != null){
                 foreach (Tag t in filhos){
@@ -122,7 +122,7 @@ namespace WeeboxSync {
                 foreach (String t in b.weeTags){
                     Tag tag = this._getTagByWeeIds(t);
 //                   fileSystem.CreateROLink(path_bundle, tag.Path);
- //                   fileSystem.CreateROLink(path_bundle, tag.Path, "" + (bundle_serial_generator-1));
+                    fileSystem.CreateROLink(this.path_schemes + "\\" + tag.Path , path_bundle + "\\" , "" + (bundle_serial_generator-1));
                 }
             }
             return true; //has created bundle

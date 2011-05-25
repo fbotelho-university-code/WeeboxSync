@@ -217,7 +217,7 @@ namespace WeeboxSync {
 
                     using (ZipFile zip = ZipFile.Read(path)){
                         //TODO - what if files exists? 
-                        zip.ExtractAll(downloadPath);
+                            zip.ExtractAll(downloadPath);
                         ficheiros.AddRange(
                             zip.EntryFileNames.Select(entrada => new Ficheiro(downloadPath + "\\" + entrada, bundleId, true)));
                     }
