@@ -58,3 +58,5 @@ _ReSharper*/
 
 *.bak
 Resources/weebox_logo_trans.png
+
+*.orig
