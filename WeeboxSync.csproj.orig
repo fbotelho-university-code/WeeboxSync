@@ -81,12 +81,14 @@
     </Compile>
     <Compile Include="MetaData.cs" />
     <Compile Include="MetaInfoPresentation.cs" />
-    <Compile Include="Registo.cs" />
+<<<<<<< HEAD
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+=======
+>>>>>>> f1ddbc198d3108f70c779af9c7e980f9b2f32aa2
     <Compile Include="Registo.cs" />
     <Compile Include="Scheme.cs" />
     <Compile Include="Program.cs" />
@@ -114,6 +116,7 @@
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </COMReference>
   </ItemGroup>
+<<<<<<< HEAD
   <ItemGroup>
     <EmbeddedResource Include="ConnectionInfoEditor.resx">
       <DependentUpon>ConnectionInfoEditor.cs</DependentUpon>
@@ -129,9 +132,8 @@
   <ItemGroup>
     <None Include="Resources\weebox_logo_trans.png" />
   </ItemGroup>
-    </EmbeddedResource>
-    <EmbeddedResource Include="FolderChooser.resx">
-      <DependentUpon>FolderChooser.cs</DependentUpon>
+=======
+>>>>>>> f1ddbc198d3108f70c779af9c7e980f9b2f32aa2
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
