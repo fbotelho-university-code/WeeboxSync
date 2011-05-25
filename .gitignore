@@ -58,6 +58,8 @@ _ReSharper*/
 
 *.bak
 Resources/weebox_logo_trans.png
-Resources/weebox_logo_trans.png.png
+Resources/weebox_logo_trans.png
 WeeboxSync.csproj
 *.resx
+
+*.orig
