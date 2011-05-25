@@ -252,7 +252,7 @@ namespace WeeboxSync {
             {
                 con.Open();
                 SqlCommand query = new SqlCommand("INSERT INTO utilizador (username, password, server_address, server_port, proxy, serial_generator, folder) VALUES ('" + conI.username + "', '" + conI.password + "', '" + conI.server_address + "', '" + conI.server_port + "', '" + conI.proxy_address + "', "+conI.serial_genearator+", '"+conI.folder+"')", con);
-                query.ExecuteNonQuery();
+//                query.ExecuteNonQuery();
             }
             catch (Exception e)
             {

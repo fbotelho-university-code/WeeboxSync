@@ -12,16 +12,16 @@ namespace WeeboxSync {
          * Creates a link between a tag and a bundle.
          * Link is placed in orig_path and links to dest_path
          */
-        public void CreateROLink(String origPath, String destPath) {
+        public void CreateROLink(String origPath, String destPath, string bundleName) {
             IWshShell_Class shell = new IWshShell_Class();
             try
             {
                 // Create the shortcut and choose the path for the shortcut
-                IWshShortcut myShortcut = shell.CreateShortcut(destPath + ".lnk");
+                IWshShortcut myShortcut = shell.CreateShortcut(origPath + "\\" + bundleName + ".lnk");
                 // Where the shortcut should point to
-                myShortcut.TargetPath = origPath;
+                myShortcut.TargetPath = destPath;
                 // Description for the shortcut
-                myShortcut.Description = "Launch My Application";
+                myShortcut.Description = "bundle";
                 // Location for the shortcut's icon
                 //MyShortcut.IconLocation = MediaTypeNames.Application.StartupPath + @"\app.ico";
                 // Create the shortcut at the given path
@@ -29,7 +29,7 @@ namespace WeeboxSync {
             }
             catch (Exception e)
             {
-                throw e;
+                throw;
             }
         }
 
@@ -100,9 +100,10 @@ namespace WeeboxSync {
             //TODO - how to get MD5 from file stream?
         }
 
+
         public void DeleteFicheiroFromFS(String fpath)
         {
-            File.Delete(fpath);
+            System.IO.File.Delete(fpath);
         }
 
         //Diferencas??

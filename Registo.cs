@@ -14,7 +14,7 @@ namespace WeeboxSync
         public string new_file_id;
         public string tag;
 
-        public Registo(string oi, DateTime e, string ot, string obi, string nbi, string ofi, string nfi, string t) { 
+        public Registo(string oi, DateTime e, string ot, string obi, string nbi, string ofi, string nfi, string t) {
             this.op_id = oi;
             this.etiqueta = e;
             this.op_type = ot;
