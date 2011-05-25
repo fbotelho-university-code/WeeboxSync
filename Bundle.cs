@@ -16,8 +16,10 @@ namespace WeeboxSync {
             this.localId = "";
             this.weeTags= new List<string>();
             this.meta = new MetaData();
-            //this.filesPath = new IEnumerable<Ficheiro>();
+            this.filesPath = new List<Ficheiro>();
+
         }
+
         /*public Bundle() { 
         
         }*/
