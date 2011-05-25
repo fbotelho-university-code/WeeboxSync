@@ -60,3 +60,4 @@ _ReSharper*/
 Resources/weebox_logo_trans.png
 Resources/weebox_logo_trans.png.png
 WeeboxSync.csproj
+*.resx
