@@ -36,11 +36,11 @@ namespace WeeboxSync {
             this._conInfo = con;
                 _client = new HttpClient(con.address.ToString() );
                 _client.TransportSettings.Credentials = new NetworkCredential(con.user.user, con.user.pass); 
-            _client.
+            //_client.
                 //TODO test connection , test user credentials 
                 //TODO set proxy if any 
                 //TODO check possible exceptions in those methods ; 
-                _connection = true; 
+                //_connection = true; 
             if (con.useProxy){
 //                _client.TransportSettings.Proxy = new WebProxy("proxy.uminho.pt:3128");
             }

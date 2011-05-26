@@ -75,7 +75,7 @@ namespace WeeboxSync {
                 reader = query.ExecuteReader();
                 while (reader.Read())
                 {
-                    List<>
+                    //List<>
                     //bundle.filesPath -> adicionar path aos ficheiros
                 }
                 query = new SqlCommand("SELECT * FROM ficheiro where bundleID = '"+id+"'", con);
@@ -279,7 +279,7 @@ namespace WeeboxSync {
                 SqlDataReader reader = query.ExecuteReader();
                 while (reader.Read())
                 {
-                    conI = new ConnectionInfo(username, reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetInt64(5), reader.GetString(6));
+                    //conI = new ConnectionInfo(username, reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetInt64(5), reader.GetString(6));
                 }
                 reader.Close();
             }

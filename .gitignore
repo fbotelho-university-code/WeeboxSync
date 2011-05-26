@@ -63,3 +63,5 @@ WeeboxSync.csproj
 *.resx
 
 *.orig
+
+Properties/*
