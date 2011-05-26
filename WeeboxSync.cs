@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 
 namespace WeeboxSync {
-
-
     public class WeeboxSync
     {
         public ConnectionInfo connection_info { get; set;  }

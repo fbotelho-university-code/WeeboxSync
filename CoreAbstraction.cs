@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Runtime.Serialization;
 using System.ServiceModel;
+using System.ServiceModel.Description;
 using System.ServiceModel.Web;
 using System.Text;
 using Microsoft.Http;
@@ -12,6 +16,7 @@ using System.Linq;
 using Ionic.Zip;
 using Microsoft.Http.Headers;
 using System.IO;
+using Microsoft.Http.Headers;
 namespace WeeboxSync {
     public class ConnectionNotSet : Exception {
 
@@ -28,71 +33,72 @@ namespace WeeboxSync {
 
     public class CoreAbstraction {
         public HttpClient _client;
-        private ConnectionInfo _conInfo; 
-        private bool _connection=false;
+        private ConnectionInfo _conInfo;
+        private bool _connection = false;
 
 
         public void SetConnection(ConnectionInfo con) {
             this._conInfo = con;
-                _client = new HttpClient(con.address.ToString() );
-                _client.TransportSettings.Credentials = new NetworkCredential(con.user.user, con.user.pass); 
-            //_client.
-                //TODO test connection , test user credentials 
-                //TODO set proxy if any 
-                //TODO check possible exceptions in those methods ; 
-                //_connection = true; 
-            if (con.useProxy){
-//                _client.TransportSettings.Proxy = new WebProxy("proxy.uminho.pt:3128");
+            _client = new HttpClient(con.address.ToString());
+            _client.TransportSettings.Credentials = new NetworkCredential(con.user.user, con.user.pass);
+
+            this._connection = true;
+            //TODO test connection , test user credentials 
+            //TODO set proxy if any 
+            //TODO check possible exceptions in those methods ; 
+
+            if (con.useProxy) {
+                //                _client.TransportSettings.Proxy = new WebProxy("proxy.uminho.pt:3128");
             }
         }
 
         /**
          * Returns null if no scheme is returned
          */
-        public List<Scheme> getSchemesFromServer(){
+        public List<Scheme> getSchemesFromServer() {
             //TODO - ALOT , exceptions , null values , empty values, server errors , validate xml input in these and look a like methods
             HttpResponseMessage resp = null;
-                bool bo = true;
-                while (bo){
-                    try{
-                        resp = _client.Get("manager/api?operation=getThesauri");
-                        bo = false;
-                    }
-                    catch (HttpStageProcessingException e){
-                        continue;
-                    }
+            bool bo = true;
+            while (bo) {
+                try {
+                    resp = _client.Get("manager/api?operation=getThesauri");
+                    bo = false;
                 }
+                catch (HttpStageProcessingException e) {
+                    continue;
+                }
+            }
 
             resp.EnsureStatusIsSuccessful();
             String schemes = resp.Content.ReadAsString();
             String[] planos = schemes.Split('\n');
             List<Scheme> lista = new List<Scheme>();
             for (int i = 0; i < planos.Length; i++) {
-                if (planos[i] != ""){
+                if (planos[i] != "") {
                     Scheme s = getScheme(planos[i]);
-                    if (s != null ) { // TODO - necessary? 
+                    if (s != null) { // TODO - necessary? 
                         lista.Add(s);
                     }
                 }
             }
-            return (lista.Count != 0) ? lista : null; 
+            return (lista.Count != 0) ? lista : null;
         }
 
-        public  Scheme getScheme(string rootID){
+        public Scheme getScheme(string rootID) {
             //TODO - check every , see getSchemes comments
-             HttpResponseMessage resp = null;
-                bool bo = true;
-                while (bo){
-                    try{
-                resp  = _client.Get("manager/api?operation=getThesaurus&thesaurus=" + rootID);
-                        bo = false;
-                    }
-                    catch (HttpStageProcessingException e){
-                        continue;
-                    }
+            HttpResponseMessage resp = null;
+            bool bo = true;
+            while (bo) {
+                try {
+                    resp = _client.Get("manager/api?operation=getThesaurus&thesaurus=" + rootID);
+                    bo = false;
                 }
+                catch (HttpStageProcessingException e) {
+                    continue;
+                }
+            }
 
-            
+
             resp.EnsureStatusIsSuccessful();
             Stream s = resp.Content.ReadAsStream();
             // TODO - validate xml answer. 
@@ -106,7 +112,7 @@ namespace WeeboxSync {
             Scheme scheme = new Scheme(s.ToString(), "Q2W1C42bT6", rootTag);
             //<id,label> 
             IEnumerable<Tuple<string, string>> lista = _getFirstLevelChilds(rootElement);
-            foreach (Tuple<String, String> tup in lista){
+            foreach (Tuple<String, String> tup in lista) {
                 string myPath = rootTag.Path + "\\" + tup.Item2;
                 Tag t = new Tag(tup.Item2, myPath, tup.Item1);
                 scheme.arvore.add(t, rootTag.Path, t.Path);
@@ -125,21 +131,21 @@ namespace WeeboxSync {
         /// Gets all Bundles specified as owned by the user established in this class
         /// </summary>
         /// <returns>Null if none present</returns>
-        public IEnumerable<String> GetAllBundlesList(){
+        public IEnumerable<String> GetAllBundlesList() {
             HttpResponseMessage resp = null;
-                bool bo = true;
-                while (bo){
-                    try{
-                        resp =   _client.Get("core/bundle/?operation=searchRetrieve&version=1.1&query=bundle.owner+=+%22" +
-                                this._conInfo.user.user + "%22");
-                        bo = false;
-                    }
-                    catch (HttpStageProcessingException e){
-                        continue;
-                    }
+            bool bo = true;
+            while (bo) {
+                try {
+                    resp = _client.Get("core/bundle/?operation=searchRetrieve&version=1.1&query=bundle.owner+=+%22" +
+                            this._conInfo.user.user + "%22");
+                    bo = false;
                 }
+                catch (HttpStageProcessingException e) {
+                    continue;
+                }
+            }
 
-            
+
             resp.EnsureStatusIsSuccessful();
             Stream s = resp.Content.ReadAsStream();
             // TODO - validate xml answer. 
@@ -147,70 +153,71 @@ namespace WeeboxSync {
             XElement rootElement = classifications.Root;
 
             List<String> lista = new List<string>();
-            foreach (XElement record in rootElement.Descendants(_getLocName("recordData"))){
+            foreach (XElement record in rootElement.Descendants(_getLocName("recordData"))) {
                 String ss = record.Value;
                 string pattern = "(<entry key=\"bundle.id\">)(\\w*)(</entry>)";
-                MatchCollection matches = Regex.Matches(ss, pattern );
-                foreach (Match  matche in matches){
-                    if (matche.Groups.Count >= 1){
+                MatchCollection matches = Regex.Matches(ss, pattern);
+                foreach (Match matche in matches) {
+                    if (matche.Groups.Count >= 1) {
                         Group group = matche.Groups[2];
                         lista.Add(group.Value);
                         Console.WriteLine(group.Value);
                     }
                 }
             }
-            if (lista.Count >= 0) return lista;  else return null; 
+            if (lista.Count >= 0) return lista; else return null;
 
         }
 
-        public MetaData GetMetaFromBundle(String bundleid){
-            try{
+
+        public MetaData GetMetaFromBundle(String bundleid) {
+            try {
 
                 HttpResponseMessage resp = null;
                 bool bo = true;
-                while (bo){
-                    try{
-                    resp =
-                        _client.Get("core/bundle/" + bundleid + "?operation=retrieveBundleMetadata");
+                while (bo) {
+                    try {
+                        resp =
+                            _client.Get("core/bundle/" + bundleid + "?operation=retrieveBundleMetadata");
                         bo = false;
                     }
-                    catch (HttpStageProcessingException e){
+                    catch (HttpStageProcessingException e) {
                         continue;
                     }
                 }
 
-                
-                
-                Stream s = resp.Content.ReadAsStream(); 
+
+
+                Stream s = resp.Content.ReadAsStream();
                 XDocument meta = XDocument.Load(s);
                 XElement rootElement = meta.Root;
 
-                MetaData metaData = new MetaData(); 
+                MetaData metaData = new MetaData();
                 foreach (XElement e in rootElement.Descendants()) {
                     //TODO - clean up the house, maybe read the attributes one by one into real values and types
-                    if (!e.Value.Equals("")) metaData.keyValueData.Add(e.FirstAttribute.Value , e.Value); 
+                    if (!e.Value.Equals("")) metaData.keyValueData.Add(e.FirstAttribute.Value, e.Value);
                 }
-                return metaData; 
+                return metaData;
             }
-            catch (ArgumentOutOfRangeException ) {
+            catch (ArgumentOutOfRangeException) {
                 return null;
             }
         }
 
-        public MetaData GetAllMetaFromBundle(String bundleid){
-            try{
-            HttpResponseMessage resp = null;
+        public MetaData GetAllMetaFromBundle(String bundleid) {
+            try {
+                HttpResponseMessage resp = null;
                 bool bo = true;
-                while (bo){
-                    try{
+                while (bo) {
+                    try {
                         resp = _client.Get("core/bundle/" + bundleid + "?operation=retrieveAllMetadata");
                         bo = false;
                     }
-                    catch (HttpStageProcessingException e){
+                    catch (HttpStageProcessingException e) {
                         continue;
                     }
                 }
-            
+
 
                 resp.EnsureStatusIsSuccessful();
 
@@ -219,25 +226,25 @@ namespace WeeboxSync {
                 XElement rootElement = meta.Root;
 
                 MetaData metaData = new MetaData();
-                foreach (XElement e in rootElement.Descendants()){
+                foreach (XElement e in rootElement.Descendants()) {
                     //TODO - clean up the house, maybe read the attributes one by one into real values and types
                     if (!e.Value.Equals("")) metaData.keyValueData.Add(e.FirstAttribute.Value, e.Value);
                 }
-                return metaData; 
+                return metaData;
             }
-            catch (ArgumentOutOfRangeException ) {
+            catch (ArgumentOutOfRangeException) {
                 return null;
             }
         }
 
-        public Bundle getBundle(string bundleId, string downloadPath){
-            Bundle toBeBundle = new Bundle {meta = GetAllMetaFromBundle(bundleId), weeId = bundleId};
+        public Bundle getBundle(string bundleId, string downloadPath) {
+            Bundle toBeBundle = new Bundle { meta = GetAllMetaFromBundle(bundleId), weeId = bundleId };
             List<String> tags = new List<String>();
-            if (toBeBundle.meta.keyValueData.ContainsKey("user.0")){
+            if (toBeBundle.meta.keyValueData.ContainsKey("user.0")) {
                 string toParse = "";
                 toBeBundle.meta.keyValueData.TryGetValue("user.0", out toParse);
                 String[] strs = Regex.Split(toParse, ";;");
-                foreach (String st in strs){
+                foreach (String st in strs) {
                     String[] tagss = Regex.Split(st, "::");
                     tags.Add(tagss.Last<String>().Trim());
                 }
@@ -245,34 +252,34 @@ namespace WeeboxSync {
             }
 
             HttpResponseMessage resp = null;
-                bool bo = true;
-                while (bo){
-                    try{
-                        resp = 
-                            _client.Get("core/bundle/" + bundleId + "?encodeFileName=true");
-                        bo = false;
-                    }
-                    catch (HttpStageProcessingException e){
-                        continue;
-                    }
+            bool bo = true;
+            while (bo) {
+                try {
+                    resp =
+                        _client.Get("core/bundle/" + bundleId + "?encodeFileName=true");
+                    bo = false;
                 }
+                catch (HttpStageProcessingException e) {
+                    continue;
+                }
+            }
 
 
-             // resp.EnsureStatusIsSuccessful();
+            // resp.EnsureStatusIsSuccessful();
             //has files?
 
-            if (toBeBundle.meta.keyValueData.ContainsKey("bundle.data.files.id")){
+            if (toBeBundle.meta.keyValueData.ContainsKey("bundle.data.files.id")) {
                 int num_files;
                 string toParse = "";
                 bool val = toBeBundle.meta.keyValueData.TryGetValue("bundle.data.files.id", out toParse);
                 num_files = toParse.Count(p => p == ',') + 1;
 
                 //zip case
-                if (num_files > 1){
+                if (num_files > 1) {
                     Stream files = resp.Content.ReadAsStream();
                     string path = downloadPath + "\\" + bundleId + ".zip";
 
-                    if (File.Exists(path)){
+                    if (File.Exists(path)) {
                         File.Delete(path);
                     }
 
@@ -283,23 +290,23 @@ namespace WeeboxSync {
 
                     List<Ficheiro> ficheiros = new List<Ficheiro>();
 
-                    using (ZipFile zip = ZipFile.Read(path)){
+                    using (ZipFile zip = ZipFile.Read(path)) {
                         //TODO - what if files exists? 
-                            zip.ExtractAll(downloadPath);
+                        zip.ExtractAll(downloadPath);
                         ficheiros.AddRange(
                             zip.EntryFileNames.Select(entrada => new Ficheiro(downloadPath + "\\" + entrada, bundleId, true)));
                     }
                     File.Delete(path);
                 }
-                else{
+                else {
                     //normal file case. 
 
-                    if (resp.Headers.ContainsKey("encoded.filename")){
+                    if (resp.Headers.ContainsKey("encoded.filename")) {
                         String s = resp.Headers["encoded.filename"];
                         Stream files = resp.Content.ReadAsStream();
                         string path = downloadPath + "\\" + s;
 
-                        if (File.Exists(path)){
+                        if (File.Exists(path)) {
                             File.Delete(path);
                         }
 
@@ -311,7 +318,7 @@ namespace WeeboxSync {
                         List<Ficheiro> ficheiros = new List<Ficheiro>();
                         ficheiros.Add(new Ficheiro(path, bundleId, true));
                     }
-                    else{
+                    else {
                         Console.WriteLine(("could not read file name"));
                     }
                 }
@@ -326,40 +333,34 @@ namespace WeeboxSync {
         public void GetFicheiro(String Ficheiroid, String bundleid) {
             throw new System.Exception("Not implemented");
         }
-        public void PutFicheiro(String bundleid, Ficheiro Ficheiro) {
-            throw new System.Exception("Not implemented");
-        }
-        public void RmFicheiroFromServer(String bundleId, Ficheiro Ficheiro) {
-            throw new System.Exception("Not implemented");
-        }
-        public bool HasNewVersion(String bundleId) {
-            throw new System.Exception("Not implemented");
-        }
+
+
+
         public Bundle GetLatestVersionFromServer(String bundleid) {
             throw new System.Exception("Not implemented");
         }
 
         private static String _getRDFName(String s) { return "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}" + s; }
         private static String _getSkoName(String s) { return "{http://www.w3.org/2004/02/skos/core#}" + s; }
-        private static String _getLocName(String s){
+        private static String _getLocName(String s) {
             return "{http://www.loc.gov/zing/srw/}" + s;
         }
 
-        private  void _buildSubTree(XElement rootElement, Tag parent, Scheme scheme) {
+        private void _buildSubTree(XElement rootElement, Tag parent, Scheme scheme) {
             IEnumerable<Tuple<string, string>> childs = _getChilds(rootElement, parent.WeeId);
             foreach (Tuple<String, String> tuplo in childs) {
                 string path = parent.Path + "\\" + tuplo.Item2; // children path
                 Tag children = new Tag(tuplo.Item2, path, tuplo.Item1);
                 scheme.arvore.add(children, parent.Path, children.Path);
-                scheme.arvoreByWeeboxIds.add(children, parent.WeeId, children.WeeId); 
-                _buildSubTree(rootElement, children,  scheme);
+                scheme.arvoreByWeeboxIds.add(children, parent.WeeId, children.WeeId);
+                _buildSubTree(rootElement, children, scheme);
             }
         }
 
         /**
          * el must have the type Concept
          */
-        private  Tuple<String, String> _getIdAndLabelFromTag(XElement el) {
+        private Tuple<String, String> _getIdAndLabelFromTag(XElement el) {
             //let's get his id and 
             String id, label;
             label = el.Element(_getSkoName("prefLabel")).Value;
@@ -367,7 +368,7 @@ namespace WeeboxSync {
             return new Tuple<String, String>(id, label);
         }
 
-        private  IEnumerable<Tuple<string, string>> _getFirstLevelChilds(XElement root) {
+        private IEnumerable<Tuple<string, string>> _getFirstLevelChilds(XElement root) {
             List<Tuple<String, String>> lista = new List<Tuple<String, String>>();
 
             foreach (XElement elem in root.Descendants(_getSkoName("Concept"))) {
@@ -379,22 +380,159 @@ namespace WeeboxSync {
         }
 
 
-        private  IEnumerable<Tuple<string, string>> _getChilds(XElement root, string parent) {
+        private IEnumerable<Tuple<string, string>> _getChilds(XElement root, string parent) {
             List<Tuple<String, String>> lista = new List<Tuple<String, String>>();
             foreach (XElement con in root.Descendants(_getSkoName("Concept"))) {
-                foreach(XElement elem in con.Descendants(_getSkoName("broader"))){
-                    foreach (XAttribute x in elem.Attributes()){
-                        if (x.Value.Equals(parent) ){
+                foreach (XElement elem in con.Descendants(_getSkoName("broader"))) {
+                    foreach (XAttribute x in elem.Attributes()) {
+                        if (x.Value.Equals(parent)) {
                             if (x.Name.LocalName.Equals("resource")) {
-                                lista.Add(_getIdAndLabelFromTag(con)); 
+                                lista.Add(_getIdAndLabelFromTag(con));
                             }
                         }
                     }
                 }
             }
-           return lista;
+            return lista;
         }
 
+        public void PutFicheiro(String bundleid, Ficheiro Ficheiro) {
+            try {
+                // Read file data
+                FileStream fs = new FileStream(@"c:\pi2010-miniteste1A.pdf", FileMode.Open, FileAccess.Read);
+                byte[] data = new byte[fs.Length];
+                fs.Read(data, 0, data.Length);
+                fs.Close();
+
+
+                fs = new FileStream(@"c:\im.jpg", FileMode.Open, FileAccess.Read);
+                byte[] data2 = new byte[fs.Length];
+                fs.Read(data2, 0, data2.Length);
+                fs.Close();
+
+                // Generate post objects
+                Dictionary<string, object> postParameters = new Dictionary<string, object>();
+                
+/*                            postParameters.Add("encoded.filename=image.jpg", "image.jpg");
+                      postParameters.Add("image.jpg", new FileParameter(data, "image.jpg", "image/png; charset=UTF-8"));
+                 
+                      postParameters.Add("encoded.filename=file.pdf", "file.pdf"); 
+                      postParameters.Add("file.pdf", new FileParameter(data2, "file.pdf", "charset=UTF-8"));
+  */
+
+
+
+                postParameters.Add("removeFile","1F8FEC6875461D0B5BA6EA7972486F8B"); 
+
+                // Create request and receive response
+                string postUrl = "http://photo.weebox.keep.pt/core/bundle/94A1FEB77EC163EB92A97E3B4EA12ED9?operation=updateFiles";
+                HttpWebResponse webResponse = MultipartFormDataPost(postUrl, postParameters);
+
+                // Process response
+                StreamReader responseReader = new StreamReader(webResponse.GetResponseStream());
+                string fullResponse = responseReader.ReadToEnd();
+                webResponse.Close();
+                //            Response.Write(fullResponse);
+            }
+            catch (Exception e) {
+                Console.WriteLine(e);
+                Console.Read();
+            }
+        }
+
+        private static readonly Encoding encoding = Encoding.UTF8;
+        private long _boundary = 28947758029299;
+
+        public HttpWebResponse MultipartFormDataPost(string postUrl, Dictionary<string, object> postParameters) {
+            long value;
+            value = this._boundary -= 1;
+            string formDataBoundary = "-----------------------------" + value;
+            string contentType = "multipart/form-data; boundary=" + formDataBoundary;
+
+            byte[] formData = GetMultipartFormData(postParameters, formDataBoundary);
+
+            return PostForm(postUrl, contentType, formData);
+        }
+
+        private HttpWebResponse PostForm(string postUrl, string contentType, byte[] formData) {
+            HttpWebRequest request = WebRequest.Create(postUrl) as HttpWebRequest;
+
+            if (request == null) {
+                throw new NullReferenceException("request is not a http request");
+            }
+
+            // Set up the request properties
+            request.Method = "POST";
+            request.Credentials = _client.TransportSettings.Credentials;
+            request.ContentType = contentType;
+            request.ContentLength = formData.Length;  // We need to count how many bytes we're sending. 
+
+            using (Stream requestStream = request.GetRequestStream()) {
+                // Push it out there
+                requestStream.Write(formData, 0, formData.Length);
+                requestStream.Close();
+            }
+
+            return request.GetResponse() as HttpWebResponse;
+        }
+
+        private byte[] GetMultipartFormData(Dictionary<string, object> postParameters, string boundary) {
+            Stream formDataStream = new System.IO.MemoryStream();
+
+            foreach (var param in postParameters) {
+                if (param.Value is FileParameter) {
+                    FileParameter fileToUpload = (FileParameter)param.Value;
+                    // Add just the first part of this param, since we will write the file data directly to the Stream
+                    string header = string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"; filename=\"{2}\";\r\nContent-Type: {3}\r\n\r\n",
+                     boundary,
+                     param.Key,
+                     fileToUpload.FileName ?? param.Key,
+                     fileToUpload.ContentType ?? "application/octet-stream");
+
+                    formDataStream.Write(encoding.GetBytes(header), 0, header.Length);
+
+                    // Write the file data directly to the Stream, rather than serializing it to a string.
+                    formDataStream.Write(fileToUpload.File, 0, fileToUpload.File.Length);
+                    // Thanks to feedback from commenters, add a CRLF to allow multiple files to be uploaded
+                    formDataStream.Write(encoding.GetBytes("\r\n"), 0, 2);
+                }
+                else {
+                        string postData =
+                            string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
+                                          boundary,
+                                          param.Key,
+                                          param.Value);
+                        formDataStream.Write(encoding.GetBytes(postData), 0, postData.Length);
+                    }
+                }
+
+            // Add the end of the request
+            string footer = "\r\n--" + boundary + "--\r\n";
+            formDataStream.Write(encoding.GetBytes(footer), 0, footer.Length);
+
+            // Dump the Stream into a byte[]
+            formDataStream.Position = 0;
+            byte[] formData = new byte[formDataStream.Length];
+            formDataStream.Read(formData, 0, formData.Length);
+            formDataStream.Close();
+
+            return formData;
+        }
+
+        public class FileParameter {
+            public byte[] File { get; set; }
+            public string FileName { get; set; }
+            public string ContentType { get; set; }
+            public FileParameter(byte[] file) : this(file, null) { }
+            public FileParameter(byte[] file, string filename) : this(file, filename, null) { }
+            public FileParameter(byte[] file, string filename, string contenttype) {
+                File = file;
+                FileName = filename;
+                ContentType = contenttype;
+            }
+        }
     }
+
 }
+
 
