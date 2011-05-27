@@ -9,15 +9,15 @@ namespace WeeboxSync {
     {
         public ConnectionInfo connection_info { get; set;  }
         private  long bundle_serial_generator =0;
-        private IEnumerable<Scheme> scheme; 
+        private List<Scheme> scheme; 
         private  String root_folder = null;
         private CoreAbstraction core;
         private FicheiroSystemAbstraction fileSystem; 
         public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
-        private string path_schemes= null;
-        private string path_bundles= null;
+        private String path_schemes= null;
+        private String path_bundles= null;
         public WeeboxSync(){
-            core = new CoreAbstraction();
+            core = CoreAbstraction.getCore();
             fileSystem = new FicheiroSystemAbstraction();
         }
 
@@ -55,7 +55,7 @@ namespace WeeboxSync {
             core.SetConnection(this.connection_info);
             this.setDefaultRootFolder();
 
-            IEnumerable<Scheme> schemes = core.getSchemesFromServer();
+            List<Scheme> schemes = core.getSchemesFromServer();
             this.scheme = schemes; 
             this.setDefaultRootFolder();
 
@@ -91,24 +91,117 @@ namespace WeeboxSync {
         public void TestaConexao(object server, object porta, object proxy) {
             throw new System.Exception("Not implemented");
         }
-        public void SetRootFolder(object folder) {
-            throw new System.Exception("Not implemented");
+
+
+
+         public  void syncScheme(){
+             List<Scheme> newScheme = core.getSchemesFromServer();
+             foreach (Scheme s in newScheme){
+                 foreach (Tag t in s.arvore.getAllValue()){
+                     if (Scheme.containsLocal(t.Path, this.scheme))
+                         try{
+                             fileSystem.CreateROFolder(t.Path);
+                         }
+                         catch (Exception e){
+                             Console.Error.WriteLine("Abruptley terminate program");
+                             Console.Read();
+                         }
+                 }
+             }
+
+             foreach (Scheme s in scheme){
+                 foreach (Tag t in s.arvore.getAllValue()){
+                     if (!Scheme.containsLocal(t.Path, newScheme)){
+                         //local tag has been removed 
+                         if (Directory.Exists(t.Path)){
+                             try{
+                                 fileSystem.DeleteRecursiveFolder(t.Path);
+                             }
+                             catch (Exception e){
+                                 Console.WriteLine("Abruptley terminate program");
+                             }
+                         }
+                     }
+                 }
+             }
+
+
+             //update classification scheme in bd 
+             scheme = newScheme;
+         }
+
+        public void syncBundles(){
+             // sync bundles 
+            List<String> allBundlesInServer = core.GetAllBundlesList(); 
+            //get all bundles in bd 
+            List<Bundle> allBundlesInFS= new List<Bundle>(); //= bd.getAllBundles
+            //            List<String> allBundlesInBD = 
+            foreach (Bundle bundle in allBundlesInFS) 
+                 if (  syncBundle(bundle) == false){
+                     //bundle has been removed from file system 
+                     //TODO - create Folder 
+                 }
+            }
+
+
+            public bool syncBundles(String bundleId){
+         
+                return true;      // TOdo read from db Bundle and call syncBundle(Bundle)
+            }
+
+            public bool syncBundle(Bundle bundle){
+                String bundle_lastest_version_id = core.GetLatestVersionIdFromServer(bundle.weeId);
+                {
+                    if (bundle_lastest_version_id == null){
+                        //bundle foi eliminado do servidor
+                        //deleteBundleFromBD
+                        //delete bundle from FS
+                        fileSystem.DeleteRecursiveFolder(bundle.getPath(path_bundles));
+
+                        //deleting all the links to the bundle
+                        foreach (String t in bundle.weeTags){
+                            Tag tag;
+                            if ((tag = Scheme.getTagByWeeIds(t, scheme)) != null){
+                                fileSystem.DeleteFile(tag.Path + "\\" + bundle.localId + ".lnk"); //tags exists 
+                            }
+                            //else .... -> if the tags have been removed we don't care.
+                        }
+                        return false; 
+                    }
+                    if (bundle_lastest_version_id == bundle.weeId){
+                        //Bundle doesn't has a new version on server
+                        sync_with_no_new_version(bundle);
+                        return true; 
+                    }
+                    else{
+                        //bundle has a new version on server
+                        sync_with_new_version(bundle);
+                        return true; 
+                    }
+                    return true; 
+                }
+            }
+
+        private void sync_with_new_version(Bundle bundle){
+
+
         }
-        public void SetDefaultRootFolder() {
-            throw new System.Exception("Not implemented");
-        }
-        public void InitSetup() {
-            throw new System.Exception("Not implemented");
-        }
-        public void SyncBundle(object bundleId) {
-            throw new System.Exception("Not implemented");
-        }
-        public void SyncBundles() {
-            throw new System.Exception("Not implemented");
+
+        private void sync_with_no_new_version(Bundle bundle){
+           List<Tuple<String,String>> md5s_fs =  fileSystem.GetFicheiroIDSFromFolder(bundle.getPath(path_bundles));
+           List<Tuple<String,String>>  md5s_from_last_updated_bundle= new List<Tuple<String,String>>(); //bd.getFilesIds.FromLastUpdatedBundles
+            foreach (Tuple<String,String> md in md5s_fs){
+                if (!md5s_from_last_updated_bundle.Contains(md)){
+                    // ficheiro só existe no file system 
+                    //core.PutFicheiro();
+                }
+
+            }
         }
 
 
-        public bool CreateBundle(string bundleId_server_id){
+
+        public bool CreateBundle(String bundleId_server_id){
             //deve garantir que os planos de classificação estão actualizados 
             string path_bundle = this.path_bundles + "\\" + this.bundle_serial_generator;
             Directory.CreateDirectory(path_bundle); 
@@ -116,9 +209,8 @@ namespace WeeboxSync {
             b.localId = "" + this.bundle_serial_generator;
             this.bundle_serial_generator += 1; 
             if (b.weeTags != null){
-   
                 foreach (String t in b.weeTags){
-                    Tag tag = this._getTagByWeeIds(t);
+                    Tag tag = Scheme.getTagByWeeIds(t, this.scheme);
                     if (tag != null){
                         //                   fileSystem.CreateROLink(path_bundle, tag.Path);
                         fileSystem.CreateROLink(this.path_schemes + "\\" + tag.Path, path_bundle + "\\", b.localId);
@@ -128,28 +220,8 @@ namespace WeeboxSync {
             return true; //has created bundle
         }
 
-        private bool _enforcePresence_of_tags(Bundle b){
-                bool value = false;
-                foreach (string tagId in b.weeTags){
-                    foreach (Scheme s in scheme){
-                        value = s.arvoreByWeeboxIds.find(tagId) != null;
-                        if (value) return true;
-                    }
-                }
-            return false; 
-        }
-
-
-        private Tag _getTagByWeeIds(string id){
-            foreach (Scheme s in this.scheme){
-                Tag t = s.arvoreByWeeboxIds.find(id); 
-                if (t != null) return t; 
-            }
-            return null; 
-        }
 
         private ConnectionInfo connectionInfo;
-        private int MAX_SYNC_TRYS= 10;
     }
 
 

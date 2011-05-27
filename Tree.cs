@@ -5,12 +5,14 @@ using System.Text;
 
 namespace WeeboxSync {
     public class Tree<T> {
+
         public Node<T> root;
 
         public void print() {
             root.printNode(0); 
         }
 
+        
         public void setRoot(T value , string key){
             root = new Node<T>(); 
             root.value = value; 
@@ -61,6 +63,14 @@ namespace WeeboxSync {
             Tree<T> s = (Tree<T>)n;
             return (this.root.Equals(s.root));
         }
+
+        public List<Tag> getAllValue(){
+            List<T> lista = new List<T>();
+            lista.Add(root.value);
+        //    root.AddChildrens(ref lista); 
+              return null;
+        }
+
     }
 
 
@@ -182,6 +192,14 @@ namespace WeeboxSync {
 
         private void SetParent(Node<T> parent) {
             _parent = parent;
+        }
+
+        public void AddChildrens(ref List<object> lista){
+            lista.Add(value);
+
+            foreach (Node<T> nodo in _children){
+                nodo.AddChildrens(ref lista);
+            }
         }
     }
 }

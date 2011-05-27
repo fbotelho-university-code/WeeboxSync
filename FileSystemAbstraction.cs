@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.AccessControl;
 using IWshRuntimeLibrary;
+using File = IWshRuntimeLibrary.File;
 
 namespace WeeboxSync {
 
@@ -14,8 +15,7 @@ namespace WeeboxSync {
          */
         public void CreateROLink(String origPath, String destPath, string bundleName) {
             IWshShell_Class shell = new IWshShell_Class();
-            try
-            {
+            try {
                 // Create the shortcut and choose the path for the shortcut
                 IWshShortcut myShortcut = shell.CreateShortcut(origPath + "\\" + bundleName + ".lnk");
                 // Where the shortcut should point to
@@ -27,8 +27,7 @@ namespace WeeboxSync {
                 // Create the shortcut at the given path
                 myShortcut.Save();
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 throw;
             }
         }
@@ -50,72 +49,57 @@ namespace WeeboxSync {
             //myDirectorySecurity.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.Modify));
         }
 
+        public void DeleteFile(String path) {
+            if (System.IO.File.Exists(path)) {
+                System.IO.File.Delete(path);
+            }
+        }
+
         /*
          * deletes an empty folder
          */
-        public void DeleteFolder(String path)
-        {
+        public void DeleteFolder(String path) {
             if (!IsDirectoryEmpty(path))
                 return;
 
-            try
-            {
+            try {
                 Directory.Delete(path);
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 throw e;
             }
-            
+
         }
 
         //delete a folder and all its files and sub-folders
-        public void DeleteRecursiveFolder(string path)
-        {
+        public void DeleteRecursiveFolder(String path) {
             DirectoryInfo parent = new DirectoryInfo(path);
             parent.Delete(true); //recursive delete
         }
-        
+
         //determine if a directory is empty and eligible for deletion
-        public bool IsDirectoryEmpty(string path)
-        {
+        public bool IsDirectoryEmpty(string path) {
             return !Directory.EnumerateFileSystemEntries(path).Any();
         }
 
-        //Deletes all link to and files from a bundle and its folder representation
-        public void DeleteBundleFromFS(Bundle bundle)
-        {
-            DirectoryInfo dirInfo = new DirectoryInfo(bundle.localId);
-
-            foreach (var file in dirInfo.GetFiles())
-            {
-                file.Delete();
+        /// <summary>
+        /// Returns Md5,Path list present in folder
+        /// </summary>
+        /// <param name="path">The folder from wich we build the results </param>
+        /// <returns></returns>
+        public List<Tuple<String,String>> GetFicheiroIDSFromFolder(String path) {
+            
+            List<Tuple<String,String>> md5s = new List<Tuple<String,String>>();
+            foreach (String fpath in Directory.EnumerateFiles(path)) {
+                try {
+                    String md5 = Ficheiro.getFilesMD5Hash(fpath);
+                    md5s.Add(new Tuple<string, string>(md5,fpath));
+                }
+                catch (Exception e) {
+                    return null;
+                }
             }
-                
-            dirInfo.Delete();
-        }
-
-        public List<String> GetFicheiroIDSFromFolder(String path) {
-            throw new System.Exception("Not implemented");
-            //TODO - how to get MD5 from file stream?
-        }
-
-
-        public void DeleteFicheiroFromFS(String fpath)
-        {
-            System.IO.File.Delete(fpath);
-        }
-
-        //Diferencas??
-        public void SaveFicheiroInFS(String path, Ficheiro ficheiro)
-        {
-            throw new System.Exception("Not implemented");
-
-        }
-        public void CreateFicheiro(Ficheiro ficheiro, String path)
-        {
-            throw new System.Exception("Not implemented");
-
+            return md5s; 
         }
     }
 }

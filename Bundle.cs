@@ -20,12 +20,9 @@ namespace WeeboxSync {
 
         }
 
-        /*public Bundle() { 
-        
-        }*/
-
-        
+        public String getPath(string root){
+            return root + "\\" + localId; 
+        }
 
     }
-
 }

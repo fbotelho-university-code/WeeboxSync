@@ -17,46 +17,71 @@ using Ionic.Zip;
 using Microsoft.Http.Headers;
 using System.IO;
 using Microsoft.Http.Headers;
+
 namespace WeeboxSync {
-    public class ConnectionNotSet : Exception {
-
-
-    }
-    public class UnpriviligedUser : Exception {
-
+    public class ConnectionNotSetException : Exception {
 
     }
-    public class NoServerAccess : Exception {
 
+    public class AccessDeniedException : Exception {
 
+    }
+
+    public class ServerErrorException : Exception {
+
+    }
+    
+    public class RequestTimeOutException : Exception{
+        
+    }
+
+    public class HttpError : Exception{
+        public  HttpStatusCode statusCode; 
+        public string context; 
+        public HttpError(HttpStatusCode statusCode, string context){
+            this.statusCode = statusCode;
+            this.context = context;
+        }
     }
 
     public class CoreAbstraction {
-        public HttpClient _client;
+
+        private static CoreAbstraction core = null;
+        private CoreAbstraction (){}
+
+        /// <summary>
+        /// Instantiate private Core Abstraction 
+        /// </summary>
+        /// <returns>The only CoreAbstraction instance present</returns>
+        public static CoreAbstraction getCore() { if (core == null) return new CoreAbstraction(); else return core;  }
+
+        private HttpClient _client;
         private ConnectionInfo _conInfo;
         private bool _connection = false;
 
-
-        public void SetConnection(ConnectionInfo con) {
-            this._conInfo = con;
-            _client = new HttpClient(con.address.ToString());
-            _client.TransportSettings.Credentials = new NetworkCredential(con.user.user, con.user.pass);
-
-            this._connection = true;
-            //TODO test connection , test user credentials 
-            //TODO set proxy if any 
-            //TODO check possible exceptions in those methods ; 
-
-            if (con.useProxy) {
-                //                _client.TransportSettings.Proxy = new WebProxy("proxy.uminho.pt:3128");
+        /// <summary>
+        /// Sets the connection information to contact the server. 
+        /// </summary>
+        /// <param name="con"> The connection information</param>
+        public void SetConnection(ConnectionInfo con){
+            _conInfo = con;
+            if (con.address != null){
+                _client = new HttpClient(con.address.ToString());
+            }
+            if (con.user != null){
+                _client.TransportSettings.Credentials = new NetworkCredential(con.user.user, con.user.pass);
+            }
+            if (con.useProxy && con.proxy != null) {
+                _client.TransportSettings.Proxy = new WebProxy(con.proxy);
             }
         }
 
         /**
          * Returns null if no scheme is returned
          */
-        public List<Scheme> getSchemesFromServer() {
+        public List<Scheme> getSchemesFromServer(){
             //TODO - ALOT , exceptions , null values , empty values, server errors , validate xml input in these and look a like methods
+
             HttpResponseMessage resp = null;
             bool bo = true;
             while (bo) {
@@ -69,7 +94,7 @@ namespace WeeboxSync {
                 }
             }
 
-            resp.EnsureStatusIsSuccessful();
+            _checkAndThrowsExceptions(resp.StatusCode, "getSchemesFromServer"); 
             String schemes = resp.Content.ReadAsString();
             String[] planos = schemes.Split('\n');
             List<Scheme> lista = new List<Scheme>();
@@ -84,7 +109,8 @@ namespace WeeboxSync {
             return (lista.Count != 0) ? lista : null;
         }
 
-        public Scheme getScheme(string rootID) {
+
+        private  Scheme getScheme(string rootID) {
             //TODO - check every , see getSchemes comments
             HttpResponseMessage resp = null;
             bool bo = true;
@@ -109,9 +135,10 @@ namespace WeeboxSync {
             XElement raiz = rootElement.Element(_getSkoName("ConceptScheme"));
 
             Tag rootTag = new Tag(raiz.Value, raiz.Value, "Q2W1C42bT6");
-            Scheme scheme = new Scheme(s.ToString(), "Q2W1C42bT6", rootTag);
+            Scheme scheme = new Scheme( "Q2W1C42bT6", rootTag);
             //<id,label> 
             IEnumerable<Tuple<string, string>> lista = _getFirstLevelChilds(rootElement);
+            
             foreach (Tuple<String, String> tup in lista) {
                 string myPath = rootTag.Path + "\\" + tup.Item2;
                 Tag t = new Tag(tup.Item2, myPath, tup.Item1);
@@ -123,7 +150,7 @@ namespace WeeboxSync {
             return scheme;
         }
 
-        public List<Bundle> GetAllBundles() {
+        public List<Bundle> GetAllBundles(){
             throw new System.Exception("Not implemented");
         }
 
@@ -131,7 +158,7 @@ namespace WeeboxSync {
         /// Gets all Bundles specified as owned by the user established in this class
         /// </summary>
         /// <returns>Null if none present</returns>
-        public IEnumerable<String> GetAllBundlesList() {
+        public List<String> GetAllBundlesList() {
             HttpResponseMessage resp = null;
             bool bo = true;
             while (bo) {
@@ -144,8 +171,6 @@ namespace WeeboxSync {
                     continue;
                 }
             }
-
-
             resp.EnsureStatusIsSuccessful();
             Stream s = resp.Content.ReadAsStream();
             // TODO - validate xml answer. 
@@ -186,16 +211,15 @@ namespace WeeboxSync {
                     }
                 }
 
-
-
                 Stream s = resp.Content.ReadAsStream();
                 XDocument meta = XDocument.Load(s);
                 XElement rootElement = meta.Root;
 
                 MetaData metaData = new MetaData();
-                foreach (XElement e in rootElement.Descendants()) {
+                foreach (XElement e in rootElement.Descendants()){
                     //TODO - clean up the house, maybe read the attributes one by one into real values and types
                     if (!e.Value.Equals("")) metaData.keyValueData.Add(e.FirstAttribute.Value, e.Value);
+
                 }
                 return metaData;
             }
@@ -238,6 +262,7 @@ namespace WeeboxSync {
         }
 
         public Bundle getBundle(string bundleId, string downloadPath) {
+
             Bundle toBeBundle = new Bundle { meta = GetAllMetaFromBundle(bundleId), weeId = bundleId };
             List<String> tags = new List<String>();
             if (toBeBundle.meta.keyValueData.ContainsKey("user.0")) {
@@ -334,7 +359,13 @@ namespace WeeboxSync {
             throw new System.Exception("Not implemented");
         }
 
-
+        public  String GetLatestVersionIdFromServer(string bundleId){
+           MetaData meta =  this.GetMetaFromBundle(bundleId);
+            if (meta.keyValueData.ContainsKey("bundle.active")){
+                if (meta.keyValueData["active"] == "false") return null; 
+            }
+          return   meta.keyValueData.ContainsKey("bundle.has.new.version") ? GetLatestVersionIdFromServer(meta.keyValueData["bundle.has.new.version"]) : bundleId;
+        }
 
         public Bundle GetLatestVersionFromServer(String bundleid) {
             throw new System.Exception("Not implemented");
@@ -425,7 +456,7 @@ namespace WeeboxSync {
                 postParameters.Add("removeFile","1F8FEC6875461D0B5BA6EA7972486F8B"); 
 
                 // Create request and receive response
-                string postUrl = "http://photo.weebox.keep.pt/core/bundle/94A1FEB77EC163EB92A97E3B4EA12ED9?operation=updateFiles";
+                string postUrl = "http://photo.weebox.keep.pt/core/bundle/AA58C3AD1FA833A33E7E710AC9C926EB?operation=updateFiles";
                 HttpWebResponse webResponse = MultipartFormDataPost(postUrl, postParameters);
 
                 // Process response
@@ -478,7 +509,6 @@ namespace WeeboxSync {
 
         private byte[] GetMultipartFormData(Dictionary<string, object> postParameters, string boundary) {
             Stream formDataStream = new System.IO.MemoryStream();
-
             foreach (var param in postParameters) {
                 if (param.Value is FileParameter) {
                     FileParameter fileToUpload = (FileParameter)param.Value;
@@ -498,7 +528,8 @@ namespace WeeboxSync {
                 }
                 else {
                         string postData =
-                            string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
+                          //  string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
+                            string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}",
                                           boundary,
                                           param.Key,
                                           param.Value);
@@ -531,6 +562,25 @@ namespace WeeboxSync {
                 ContentType = contenttype;
             }
         }
+
+
+        private void _checkAndThrowsExceptions(HttpStatusCode statusCode, string context){
+            switch(statusCode){
+                case HttpStatusCode.OK: 
+                    return; 
+                case HttpStatusCode.Created:
+                    return; 
+                case HttpStatusCode.Unauthorized :
+                    throw new AccessDeniedException(); 
+                case HttpStatusCode.InternalServerError : 
+                    throw new ServerErrorException();
+                default: 
+                    throw new HttpError(statusCode , context);
+            }
+        }
+
+
+     
     }
 
 }
