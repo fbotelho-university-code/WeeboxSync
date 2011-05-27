@@ -12,34 +12,21 @@ namespace WeeboxSync
     public partial class LoginWindow : Form
     {
         private WeeboxSync weebox;
-
-        private string user;
-        private string server;
-        private string password;
-
-        public LoginWindow(WeeboxSync weeboxInstance)
+        public LoginWindow(ref WeeboxSync weeboxInstance)
         {
             InitializeComponent();
-            
             this.weebox = weeboxInstance;
-            user = "";
-            password = "";
-
-            server = @"http://photo.weebox.keep.pt/";
-
-            
-
+            //server = @"http://photo.weebox.keep.pt/";
         }
 
-        private void iniciarButton_Click(object sender, EventArgs e) {
-            if(weebox.connection_info == null)
-                weebox.connection_info = new ConnectionInfo();
-            
+        private void iniciarButton_Click(object sender, EventArgs e)
+        {
+           if (weebox.connection_info == null)
+                weebox.connection_info = new ConnectionInfo ();
             weebox.connection_info.user.user = usernameTextBox.Text;
             weebox.connection_info.user.pass = passwordTextBox.Text;
-
+         
             //TODO test connection and credentials
-            
             //if(credentials ok)
             //{
             //    this.Visible = false;
@@ -49,16 +36,22 @@ namespace WeeboxSync
             //    MessageBox.Show ("Erro ao estabelecer ligacao." +
             //                     "Verificar credenciais e servidor", "Erro de ligacao");
             //}
+            this.DialogResult = DialogResult.OK;
+            this.Close ();
         }
 
-        private void button1_Click(object sender, EventArgs e) {
-            ConnectionInfo con = weebox.connection_info;
-            if(con == null)
-                con = new ConnectionInfo ();
+        protected override void Dispose(bool disposing) {
+            this.DialogResult = DialogResult.Abort;
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
 
-            ConnectionInfoEditor cie = new ConnectionInfoEditor (con);
-            cie.ShowDialog (this);
-
+        private void button1_Click_1(object sender, EventArgs e) {
+            this.DialogResult = DialogResult.Retry;
+            this.Close ();
         }
     }
 }

@@ -16,6 +16,8 @@ namespace WeeboxSync {
         public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
         private String path_schemes= null;
         private String path_bundles= null;
+        public int DefaultSyncInterval { get; set; } //in minutes
+
         public WeeboxSync(){
             core = CoreAbstraction.getCore();
             fileSystem = new FicheiroSystemAbstraction();
@@ -38,13 +40,21 @@ namespace WeeboxSync {
             if (!Directory.Exists(path)){
                 Directory.CreateDirectory(path);
                 Directory.CreateDirectory(path_Schemes);
-                Directory.CreateDirectory(path_bundles); 
+                Directory.CreateDirectory(path_bundles);
+
+                this.root_folder = path;
+                this.path_schemes = path_Schemes;
+                this.path_bundles = path_bundles;
+                return true;
+            }
+            else {
+                this.root_folder = "";
+                this.path_schemes = "";
+                this.path_bundles = "";
+                return false;     
             }
 //            else throw new ArgumentOutOfRangeException();
-            this.root_folder = path;
-            this.path_schemes = path_Schemes;
-            this.path_bundles = path_bundles; 
-            return true;
+            
         }
 
         public void setDefaultRootFolder(){
@@ -53,11 +63,9 @@ namespace WeeboxSync {
 
         public void setup(){
             core.SetConnection(this.connection_info);
-            this.setDefaultRootFolder();
 
             List<Scheme> schemes = core.getSchemesFromServer();
             this.scheme = schemes; 
-            this.setDefaultRootFolder();
 
             foreach (Scheme sch in schemes){
                 Tag root = sch.arvore.getRoot();

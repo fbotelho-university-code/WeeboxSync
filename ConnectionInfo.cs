@@ -9,8 +9,7 @@ namespace WeeboxSync {
         public bool useProxy { get; set; }  // guardar na bd também 
 
         public ConnectionInfo(){
-            this.user.user = ""; 
-            this.user.pass = "";
+            user = new Utilizador ("", "");
             this.proxy  = null;
             this.address  = null;
         }
