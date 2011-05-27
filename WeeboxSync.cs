@@ -18,6 +18,8 @@ namespace WeeboxSync {
         public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
         private string path_schemes= null;
         private string path_bundles= null;
+        public int DefaultSyncInterval { get; set; } //in minutes
+
         public WeeboxSync(){
             core = new CoreAbstraction();
             fileSystem = new FicheiroSystemAbstraction();
@@ -40,13 +42,21 @@ namespace WeeboxSync {
             if (!Directory.Exists(path)){
                 Directory.CreateDirectory(path);
                 Directory.CreateDirectory(path_Schemes);
-                Directory.CreateDirectory(path_bundles); 
+                Directory.CreateDirectory(path_bundles);
+
+                this.root_folder = path;
+                this.path_schemes = path_Schemes;
+                this.path_bundles = path_bundles;
+                return true;
+            }
+            else {
+                this.root_folder = "";
+                this.path_schemes = "";
+                this.path_bundles = "";
+                return false;     
             }
 //            else throw new ArgumentOutOfRangeException();
-            this.root_folder = path;
-            this.path_schemes = path_Schemes;
-            this.path_bundles = path_bundles; 
-            return true;
+            
         }
 
         public void setDefaultRootFolder(){
@@ -55,11 +65,9 @@ namespace WeeboxSync {
 
         public void setup(){
             core.SetConnection(this.connection_info);
-            this.setDefaultRootFolder();
 
             IEnumerable<Scheme> schemes = core.getSchemesFromServer();
             this.scheme = schemes; 
-            this.setDefaultRootFolder();
 
             foreach (Scheme sch in schemes){
                 Tag root = sch.arvore.getRoot();
@@ -94,9 +102,6 @@ namespace WeeboxSync {
             throw new System.Exception("Not implemented");
         }
         public void SetRootFolder(object folder) {
-            throw new System.Exception("Not implemented");
-        }
-        public void SetDefaultRootFolder() {
             throw new System.Exception("Not implemented");
         }
         public void InitSetup() {

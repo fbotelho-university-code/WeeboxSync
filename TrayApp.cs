@@ -23,14 +23,16 @@ namespace WeeboxSync
             //menu.
 
 
-            menu.Add("Force Sync", new EventHandler(ForceSync));
+            menu.Add("Force Sync", ForceSync);
             menu.Add("Exit", OnExit);
             
 
             trayIcon = new NotifyIcon();
             trayIcon.Text = "WeeboxSync\nStarting....";
-            trayIcon.Icon = new Icon(SystemIcons.Application, 40, 40);
+            //trayIcon.Icon = new Icon(SystemIcons.Application, 40, 40);
 
+
+            
             // Add menu to tray icon and show it.
             trayIcon.ContextMenu = trayMenu;
             trayIcon.Visible = true;
@@ -54,8 +56,15 @@ namespace WeeboxSync
         private void OnExit(object sender, EventArgs e)
         {
             //maybe do some stuff before exiting?
+            var res = MessageBox.Show (
+                "Tem a certeza que deseja sair?",
+                "Confirmação",
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button1);
 
-            Application.Exit();
+            if(res == DialogResult.OK)
+                Application.Exit();
         }
 
         protected override void Dispose(bool isDisposing)
