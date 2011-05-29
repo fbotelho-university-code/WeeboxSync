@@ -7,6 +7,7 @@ using IWshRuntimeLibrary;
 using File = IWshRuntimeLibrary.File;
 
 namespace WeeboxSync {
+    using System.Net.Mime;
 
     public class FicheiroSystemAbstraction {
         /*
@@ -23,7 +24,8 @@ namespace WeeboxSync {
                 // Description for the shortcut
                 myShortcut.Description = "bundle";
                 // Location for the shortcut's icon
-                //MyShortcut.IconLocation = MediaTypeNames.Application.StartupPath + @"\app.ico";
+                //myShortcut.IconLocation = MediaTypeNames.Application.StartupPath + @"\app.ico";
+                //myShortcut.IconLocation = @"Icons\Bundles\" + docType + ".ico";
                 // Create the shortcut at the given path
                 myShortcut.Save();
             }

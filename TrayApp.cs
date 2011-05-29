@@ -14,29 +14,24 @@ namespace WeeboxSync
         private NotifyIcon  trayIcon;
         private ContextMenu trayMenu;
 
-        public TrayApp()
+        public TrayApp(WeeboxSync instance)
         {
-            //weebox = instance;
+            weebox = instance;
 
             trayMenu = new ContextMenu();
             var menu = trayMenu.MenuItems;
             //menu.
 
-
             menu.Add("Force Sync", ForceSync);
             menu.Add("Exit", OnExit);
             
-
-            trayIcon = new NotifyIcon();
-            trayIcon.Text = "WeeboxSync\nStarting....";
-            //trayIcon.Icon = new Icon(SystemIcons.Application, 40, 40);
-
-
-            
-            // Add menu to tray icon and show it.
-            trayIcon.ContextMenu = trayMenu;
-            trayIcon.Visible = true;
-
+            trayIcon = new NotifyIcon {
+                                          Text = "WeeboxSync\nStarting....",
+                                          Icon =
+                                              new Icon(@"Icons\weebox_tray_icon2.ico"),
+                                          ContextMenu = trayMenu,
+                                          Visible = true
+                                      };
         }
 
         private void ForceSync(object sender, EventArgs eventArgs)
