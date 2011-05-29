@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
-using System.Collections.Generic; 
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+
 namespace WeeboxSync {
     public class MetaData{
 
@@ -24,8 +26,25 @@ namespace WeeboxSync {
   <entry key="bundle.version">3</entry> 
   </properties>
  */
-        
-       public  Dictionary<String,String> keyValueData = new Dictionary<String,String>();
+
+        public bool hasFiles(){
+            return getFilesMd5s() != null; 
+        }
+
+        public List<String> getFilesMd5s(){
+            //get files ids
+            if (keyValueData.ContainsKey("bundle.data.files.id")){
+                String toParse = keyValueData["bundle.data.files.id"];
+                if (toParse != ""){
+                    //we have files , parse them 
+                    String[] strs = Regex.Split(toParse, ",");
+                    return new List<string>(strs); 
+                }
+            }
+            return null; 
+        }
+
+        public  Dictionary<String,String> keyValueData = new Dictionary<String,String>();
         public MetaData(){
 
         }

@@ -10,8 +10,8 @@ namespace WeeboxSync {
         public Tag(string tag, string path, string WeeId) { this.Name = tag; this.Path = path; this.WeeId = WeeId; }
         public Tag(Tag t) {
             this.Name = t.Name;
-            this.WeeId = WeeId; 
-            this.Path = t.Path;
+            this.WeeId = WeeId;
+            this.Path = t.Path; 
         }
 
        override public Boolean Equals(Object t) {

@@ -35,6 +35,7 @@ namespace WeeboxSync {
         
     }
 
+
     public class HttpError : Exception{
         public  HttpStatusCode statusCode; 
         public string context; 
@@ -44,17 +45,18 @@ namespace WeeboxSync {
         }
     }
 
-    public class CoreAbstraction {
 
+    public class CoreAbstraction {
         private static CoreAbstraction core = null;
         private CoreAbstraction (){}
+        public Dictionary<String, DocType> docTypes = new Dictionary<string, DocType>(); 
+
 
         /// <summary>
         /// Instantiate private Core Abstraction 
         /// </summary>
         /// <returns>The only CoreAbstraction instance present</returns>
         public static CoreAbstraction getCore() { if (core == null) return new CoreAbstraction(); else return core;  }
-
         private HttpClient _client;
         private ConnectionInfo _conInfo;
         private bool _connection = false;
@@ -74,6 +76,7 @@ namespace WeeboxSync {
             if (con.useProxy && con.proxy != null) {
                 _client.TransportSettings.Proxy = new WebProxy(con.proxy);
             }
+            _client.TransportSettings.PreAuthenticate = true; 
         }
 
         /**
@@ -108,7 +111,6 @@ namespace WeeboxSync {
             }
             return (lista.Count != 0) ? lista : null;
         }
-
 
         private  Scheme getScheme(string rootID) {
             //TODO - check every , see getSchemes comments
@@ -241,10 +243,7 @@ namespace WeeboxSync {
                         continue;
                     }
                 }
-
-
                 resp.EnsureStatusIsSuccessful();
-
                 Stream s = resp.Content.ReadAsStream();
                 XDocument meta = XDocument.Load(s);
                 XElement rootElement = meta.Root;
@@ -261,96 +260,167 @@ namespace WeeboxSync {
             }
         }
 
-        public Bundle getBundle(string bundleId, string downloadPath) {
+        public Bundle getBundleInfo(string bundleId){
+            Bundle toBeBundle = new Bundle {meta = GetAllMetaFromBundle(bundleId), weeId = bundleId};
+            if (toBeBundle == null|| toBeBundle.meta == null)  return null;
 
-            Bundle toBeBundle = new Bundle { meta = GetAllMetaFromBundle(bundleId), weeId = bundleId };
-            List<String> tags = new List<String>();
-            if (toBeBundle.meta.keyValueData.ContainsKey("user.0")) {
-                string toParse = "";
-                toBeBundle.meta.keyValueData.TryGetValue("user.0", out toParse);
-                String[] strs = Regex.Split(toParse, ";;");
-                foreach (String st in strs) {
-                    String[] tagss = Regex.Split(st, "::");
-                    tags.Add(tagss.Last<String>().Trim());
+            if (toBeBundle.meta.keyValueData.ContainsKey("dc.type")){
+                String idDocType = toBeBundle.meta.keyValueData["dc.type"]; 
+                if (this.docTypes[idDocType] == null){
+                    //try to get new docTypes
+                    this.docTypes = getDocTypes(); 
                 }
-                toBeBundle.weeTags = tags;
+            
+                if (this.docTypes[idDocType] == null){
+                    //still don't know the doc type return null 
+                    return null; 
+                }
+                toBeBundle.type = this.docTypes[idDocType]; 
             }
+            _parseBundleTags(ref toBeBundle); 
+            _extracFilesInfo(ref toBeBundle);
+            return toBeBundle; 
+        }
+
+        private void _extracFilesInfo(ref Bundle toBeBundle){
+            string bundleId = toBeBundle.weeId;
+            List<String> ids = toBeBundle.meta.getFilesMd5s();
+            List<Ficheiro> files = new List<Ficheiro>();
+            if (ids != null) {
+                foreach (String fid in ids) {
+                    HttpResponseMessage resp = null;
+                    bool bo = true;
+                    if (ids != null) {
+                        //has files 
+                        while (bo) {
+                            try {
+                                resp = _client.Get("core/file/" + bundleId + "/" + fid + "?operation=retrieveFileMetadata");
+                                bo = false;
+                            }
+                            catch (HttpStageProcessingException e) {
+                                continue;
+                            }
+                        }
+                    }
+                    _checkAndThrowsExceptions(resp.StatusCode, "retrieve bunle info");
+
+                    //parse file names 
+                    String s = resp.Content.ReadAsString();
+                    string pattern = "(<entry key=\"file.filename\">)([^<]*)(</entry>)";
+                    MatchCollection matches = Regex.Matches(s, pattern);
+                    foreach (Match matche in matches) {
+                        if (matche.Groups.Count >= 1) {
+                            Group group = matche.Groups[2];
+                            toBeBundle.filesPath.Add(new Ficheiro(group.Value, bundleId, fid));
+                        }
+                    }
+                }
+            }
+        }
+
+        private void _parseBundleTags(ref Bundle toBeBundle){
+            List<String> tags = new List<String>();
+
+            foreach (DocType.Field field in toBeBundle.type.tagFields){
+                if (toBeBundle.meta.keyValueData.ContainsKey(field.id)){
+                    string toParse = "";
+                    toBeBundle.meta.keyValueData.TryGetValue("user.0", out toParse);
+                    String[] strs = Regex.Split(toParse, ";;");
+                    foreach (String st in strs){
+                        String[] tagss = Regex.Split(st, "::");
+                        tags.Add(tagss.Last<String>().Trim());
+                    }
+                }
+            }
+            toBeBundle.weeTags = tags;
+        }
+
+        public Bundle getBundle(string bundleId, string downloadPath){
+            Bundle toBeBundle = getBundleInfo(bundleId);
+            if (toBeBundle == null) return null;
 
             HttpResponseMessage resp = null;
             bool bo = true;
-            while (bo) {
-                try {
+
+            while (bo){
+                try{
                     resp =
                         _client.Get("core/bundle/" + bundleId + "?encodeFileName=true");
                     bo = false;
                 }
-                catch (HttpStageProcessingException e) {
+                catch (HttpStageProcessingException e){
                     continue;
                 }
             }
 
-
             // resp.EnsureStatusIsSuccessful();
-            //has files?
+            //alter the files path set by getBundleInfo 
+            toBeBundle.filesPath.Select((Ficheiro x) => x.path = downloadPath + "\\" + x.name);
 
-            if (toBeBundle.meta.keyValueData.ContainsKey("bundle.data.files.id")) {
-                int num_files;
-                string toParse = "";
-                bool val = toBeBundle.meta.keyValueData.TryGetValue("bundle.data.files.id", out toParse);
-                num_files = toParse.Count(p => p == ',') + 1;
-
-                //zip case
-                if (num_files > 1) {
-                    Stream files = resp.Content.ReadAsStream();
-                    string path = downloadPath + "\\" + bundleId + ".zip";
-
-                    if (File.Exists(path)) {
-                        File.Delete(path);
-                    }
-
-                    FileStream f = File.OpenWrite(path);
-                    files.CopyTo(f);
-                    f.Flush();
-                    f.Close();
-
-                    List<Ficheiro> ficheiros = new List<Ficheiro>();
-
-                    using (ZipFile zip = ZipFile.Read(path)) {
-                        //TODO - what if files exists? 
-                        zip.ExtractAll(downloadPath);
-                        ficheiros.AddRange(
-                            zip.EntryFileNames.Select(entrada => new Ficheiro(downloadPath + "\\" + entrada, bundleId, true)));
-                    }
-                    File.Delete(path);
+            //zip case)
+            if (toBeBundle.filesPath.Count > 1){
+                Stream files = resp.Content.ReadAsStream();
+                string zip_path = downloadPath + "\\" + bundleId + ".zip";
+                if (File.Exists(zip_path)){
+                    File.Delete(zip_path);
                 }
-                else {
-                    //normal file case. 
 
-                    if (resp.Headers.ContainsKey("encoded.filename")) {
-                        String s = resp.Headers["encoded.filename"];
-                        Stream files = resp.Content.ReadAsStream();
-                        string path = downloadPath + "\\" + s;
+                FileStream f = File.OpenWrite(zip_path);
+                files.CopyTo(f);
+                f.Flush();
+                f.Close();
 
-                        if (File.Exists(path)) {
-                            File.Delete(path);
-                        }
+                List<Ficheiro> ficheiros = new List<Ficheiro>();
 
-
-                        FileStream f = File.OpenWrite(path);
-                        files.CopyTo(f);
-                        f.Flush();
-                        f.Close();
-                        List<Ficheiro> ficheiros = new List<Ficheiro>();
-                        ficheiros.Add(new Ficheiro(path, bundleId, true));
-                    }
-                    else {
-                        Console.WriteLine(("could not read file name"));
-                    }
+                using (ZipFile zip = ZipFile.Read(zip_path)){
+                    //TODO - what if files exists? 
+                    zip.ExtractExistingFile = ExtractExistingFileAction.OverwriteSilently;
+                    zip.ExtractAll(downloadPath);
+                    ficheiros.AddRange(
+                        zip.EntryFileNames.Select(
+                            entrada => new Ficheiro(downloadPath + "\\" + entrada, bundleId, true)));
                 }
+                File.Delete(zip_path);
+            }
+
+            if (toBeBundle.filesPath.Count == 1){
+                Ficheiro file = toBeBundle.filesPath.First();
+                Stream files = resp.Content.ReadAsStream();
+                string file_path = downloadPath + "\\" + file.name;
+                if (File.Exists(file_path)){
+                    File.Delete(file_path);
+                }
+                FileStream f = File.OpenWrite(file_path);
+                files.CopyTo(f);
+                f.Flush();
+                f.Close();
+                List<Ficheiro> ficheiros = new List<Ficheiro>();
+                ficheiros.Add(new Ficheiro(file_path, bundleId, true));
             }
             return toBeBundle;
         }
 
+        public Dictionary<String,DocType> getDocTypes(){
+            HttpResponseMessage resp  = _client.Get("manager/api?operation=getDocTypes");
+            resp.EnsureStatusIsSuccessful();
+            String[] docs = resp.Content.ReadAsString().Split('\n'); 
+            Dictionary<String, DocType>  map = new Dictionary<String,DocType>();
+
+            for (int i = 0; i < docs.Length; i++){
+                if (docs[i] != ""){
+                    resp = _client.Get("manager/api?operation=getDocType&docType=" + docs[i]);
+                    resp.EnsureStatusIsSuccessful();
+                    DocType  doc = DocType.readAsXelement(resp.Content.ReadAsXElement()); 
+                    if (doc != null){
+                        map.Add(doc.id, doc);
+                    }
+                    Console.WriteLine(doc.ToString());
+                }
+
+                Console.WriteLine("-----------------------------------------------------------");
+            }
+            return map; 
+        }
 
         public List<Ficheiro> GetFicheiros(String bundleid) {
             throw new System.Exception("Not implemented");
@@ -427,56 +497,87 @@ namespace WeeboxSync {
             return lista;
         }
 
-        public void PutFicheiro(String bundleid, Ficheiro Ficheiro) {
-            try {
-                // Read file data
-                FileStream fs = new FileStream(@"c:\pi2010-miniteste1A.pdf", FileMode.Open, FileAccess.Read);
-                byte[] data = new byte[fs.Length];
-                fs.Read(data, 0, data.Length);
-                fs.Close();
 
 
-                fs = new FileStream(@"c:\im.jpg", FileMode.Open, FileAccess.Read);
-                byte[] data2 = new byte[fs.Length];
-                fs.Read(data2, 0, data2.Length);
-                fs.Close();
+        public Tuple<String, List<String>>  RemoveFicheiros(String bundleid, List<Ficheiro> files){
+            List<String> file_names = files.ConvertAll((Ficheiro x) => x.md5);
+            return this.RemoveFicheiros(bundleid, file_names); 
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bundleId"></param>
+        /// <param name="files"></param>
+        /// <returns>Bundle id , removed files</returns>
+        public Tuple<String,List<String>>  RemoveFicheiros(String bundleId, List<String>  files){
+            string fullResponse = bundleId; 
+            List<String> removed = new List<string>(files);
+            foreach (String file in files){
+                string postUrl =
+                "http://photo.weebox.keep.pt/core/bundle/" + fullResponse + "?operation=updateFiles";
+                Dictionary<string, object> postParameters = new Dictionary<string, object>();
+                postParameters.Add("removeFile", file);
+                HttpWebResponse webResponse = MultipartFormDataPost(postUrl, postParameters);
+                StreamReader responseReader = new StreamReader(webResponse.GetResponseStream());
+                fullResponse = responseReader.ReadToEnd();
+                removed.Remove(file); 
+                Console.WriteLine(fullResponse);
+            }
+            return new Tuple<String,List<String>>(fullResponse,removed);
+            Console.Read(); 
+        }
+
+        /// <summary>
+        /// </summary>
+        /// <param name="bundleid"></param>
+        /// <param name="files"></param>
+       public String PutFicheiros(String bundleid, List<Ficheiro> files){
+                Bundle bundle = getBundleInfo(bundleid);
+                //Remover ficheiros com md5s iguais de files e corrigir nomes
+
+
+           foreach (Ficheiro file in bundle.filesPath){
+                    files.RemoveAll((Ficheiro x) => x.md5 == file.md5);
+                    IEnumerable<Ficheiro> files_repetidos = files.FindAll((Ficheiro x) => x.name == file.name);
+                    int i = 0;
+                    foreach (Ficheiro dup in files_repetidos){
+                        dup.name = dup.name + "_Duplicate_copy_" + 0;
+                    }
+                }
 
                 // Generate post objects
                 Dictionary<string, object> postParameters = new Dictionary<string, object>();
-                
-/*                            postParameters.Add("encoded.filename=image.jpg", "image.jpg");
-                      postParameters.Add("image.jpg", new FileParameter(data, "image.jpg", "image/png; charset=UTF-8"));
-                 
-                      postParameters.Add("encoded.filename=file.pdf", "file.pdf"); 
-                      postParameters.Add("file.pdf", new FileParameter(data2, "file.pdf", "charset=UTF-8"));
-  */
+                postParameters.Add("bundle.has.new.version", "undefined");
+                foreach (Ficheiro file in files){
+                    // Read file data
+                    FileStream fs = new FileStream(file.path, FileMode.Open, FileAccess.Read);
+                    byte[] data = new byte[fs.Length];
+                    fs.Read(data, 0, data.Length);
+                    fs.Close();
 
+                    postParameters.Add("encoded.filename=" + file.name, file.name);
+                    postParameters.Add(file.name, new FileParameter(data, file.name, "charset=UTF-8"));
+                }
+           
+           string postUrl =
+                    "http://photo.weebox.keep.pt/core/bundle/" + bundleid +  "?operation=updateFiles";
+          
+           HttpWebResponse webResponse = MultipartFormDataPost(postUrl, postParameters);
+           StreamReader responseReader = new StreamReader(webResponse.GetResponseStream());
+           string fullResponse = responseReader.ReadToEnd();
 
-
-                postParameters.Add("removeFile","1F8FEC6875461D0B5BA6EA7972486F8B"); 
-
-                // Create request and receive response
-                string postUrl = "http://photo.weebox.keep.pt/core/bundle/AA58C3AD1FA833A33E7E710AC9C926EB?operation=updateFiles";
-                HttpWebResponse webResponse = MultipartFormDataPost(postUrl, postParameters);
-
-                // Process response
-                StreamReader responseReader = new StreamReader(webResponse.GetResponseStream());
-                string fullResponse = responseReader.ReadToEnd();
-                webResponse.Close();
-                //            Response.Write(fullResponse);
-            }
-            catch (Exception e) {
-                Console.WriteLine(e);
-                Console.Read();
-            }
+           Console.WriteLine(fullResponse);
+           return fullResponse; 
         }
+
+
 
         private static readonly Encoding encoding = Encoding.UTF8;
         private long _boundary = 28947758029299;
 
         public HttpWebResponse MultipartFormDataPost(string postUrl, Dictionary<string, object> postParameters) {
-            long value;
-            value = this._boundary -= 1;
+            long value = this._boundary -= 1;
             string formDataBoundary = "-----------------------------" + value;
             string contentType = "multipart/form-data; boundary=" + formDataBoundary;
 
@@ -486,7 +587,8 @@ namespace WeeboxSync {
         }
 
         private HttpWebResponse PostForm(string postUrl, string contentType, byte[] formData) {
-            HttpWebRequest request = WebRequest.Create(postUrl) as HttpWebRequest;
+
+             HttpWebRequest request = WebRequest.Create(postUrl) as HttpWebRequest;
 
             if (request == null) {
                 throw new NullReferenceException("request is not a http request");
@@ -495,8 +597,16 @@ namespace WeeboxSync {
             // Set up the request properties
             request.Method = "POST";
             request.Credentials = _client.TransportSettings.Credentials;
+            request.PreAuthenticate = true; 
             request.ContentType = contentType;
             request.ContentLength = formData.Length;  // We need to count how many bytes we're sending. 
+            request.KeepAlive = true;
+            request.Pipelined = true;
+            request.AllowWriteStreamBuffering = true;
+            request.SendChunked = true;
+            if (formData.Length >= (1024 * 1024)){
+                request.Timeout = 1000*formData.Length*8/10000;
+            }
 
             using (Stream requestStream = request.GetRequestStream()) {
                 // Push it out there
@@ -504,11 +614,14 @@ namespace WeeboxSync {
                 requestStream.Close();
             }
 
+
             return request.GetResponse() as HttpWebResponse;
         }
 
+
         private byte[] GetMultipartFormData(Dictionary<string, object> postParameters, string boundary) {
             Stream formDataStream = new System.IO.MemoryStream();
+
             foreach (var param in postParameters) {
                 if (param.Value is FileParameter) {
                     FileParameter fileToUpload = (FileParameter)param.Value;
@@ -527,29 +640,39 @@ namespace WeeboxSync {
                     formDataStream.Write(encoding.GetBytes("\r\n"), 0, 2);
                 }
                 else {
+                    if (param.Key == "removeFile") {
+                            string postData =
+                                //  string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
+                                string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}",
+                                              boundary,
+                                              param.Key,
+                                              param.Value);
+                            formDataStream.Write(encoding.GetBytes(postData), 0, postData.Length);
+                        }
+                    else{
                         string postData =
-                          //  string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
-                            string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}",
+                              string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
+                            //string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}",
                                           boundary,
                                           param.Key,
                                           param.Value);
                         formDataStream.Write(encoding.GetBytes(postData), 0, postData.Length);
                     }
                 }
+            }
 
             // Add the end of the request
-            string footer = "\r\n--" + boundary + "--\r\n";
-            formDataStream.Write(encoding.GetBytes(footer), 0, footer.Length);
+                string footer = "\r\n--" + boundary + "--\r\n";
+                formDataStream.Write(encoding.GetBytes(footer), 0, footer.Length);
 
             // Dump the Stream into a byte[]
             formDataStream.Position = 0;
             byte[] formData = new byte[formDataStream.Length];
             formDataStream.Read(formData, 0, formData.Length);
             formDataStream.Close();
-
             return formData;
         }
-
+                
         public class FileParameter {
             public byte[] File { get; set; }
             public string FileName { get; set; }

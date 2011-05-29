@@ -56,7 +56,13 @@ namespace WeeboxSync {
         public string bundleId { get; set; }
         public string md5 { get; set; }
         public string path { get; set; }
+        public string name { get; set;  }
 
+        private string getName(){
+            String s = "" + path;
+            int lastInfexOF   = s.LastIndexOf("\\");
+            return s.Remove(0, lastInfexOF+2 ); 
+        }
 
         /// <summary>
         /// Sets bundleId to null, initializes md5 if readMd5 says so reading from file.
@@ -68,6 +74,7 @@ namespace WeeboxSync {
                 this.md5 = Ficheiro.getFilesMD5Hash(path);
             }
             this.path = path;
+            this.name = getName(); 
             this.bundleId = null;
         }
 
@@ -76,19 +83,23 @@ namespace WeeboxSync {
                 this.md5 = Ficheiro.getFilesMD5Hash(path);
             }
             this.bundleId  = bundleId;
-            this.path = path; 
+            this.path = path;
+            this.name = getName(); 
         }
+
 
         public Ficheiro(string path , string bundleId , string md5){
             this.path = path;
             this.bundleId = bundleId;
-            this.md5 = md5; 
+            this.md5 = md5;
+            this.name = getName(); 
         }
 
         public Ficheiro() {
             this.path = "";
             this.bundleId = "";
             this.md5 = "";
+            this.name = ""; 
         }
     }
 }
