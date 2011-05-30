@@ -8,6 +8,7 @@ using File = IWshRuntimeLibrary.File;
 
 namespace WeeboxSync {
     using System.Net.Mime;
+    using System.Windows.Forms;
 
     public class FicheiroSystemAbstraction {
         /*
@@ -15,6 +16,7 @@ namespace WeeboxSync {
          * Link is placed in orig_path and links to dest_path
          */
         public void CreateROLink(String origPath, String destPath, string bundleName) {
+            //TODO add shortcut icon
             IWshShell_Class shell = new IWshShell_Class();
             try {
                 // Create the shortcut and choose the path for the shortcut
@@ -25,7 +27,8 @@ namespace WeeboxSync {
                 myShortcut.Description = "bundle";
                 // Location for the shortcut's icon
                 //myShortcut.IconLocation = MediaTypeNames.Application.StartupPath + @"\app.ico";
-                //myShortcut.IconLocation = @"Icons\Bundles\" + docType + ".ico";
+                
+                myShortcut.IconLocation = Application.StartupPath + @"\Icons\bundle.ico";
                 // Create the shortcut at the given path
                 myShortcut.Save();
             }
@@ -43,12 +46,7 @@ namespace WeeboxSync {
 
             if (Directory.Exists(path)) return;
 
-            Directory.CreateDirectory(path); //TODO - Set folder permissions
-
-            //make dir read only
-            //DirectoryInfo myDirectoryInfo = new DirectoryInfo(path);
-            //DirectorySecurity myDirectorySecurity = myDirectoryInfo.GetAccessControl();
-            //myDirectorySecurity.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.Modify));
+            Directory.CreateDirectory(path);
         }
 
         public void DeleteFile(String path) {

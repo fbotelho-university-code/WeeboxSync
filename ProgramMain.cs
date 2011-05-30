@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 
 namespace WeeboxSync
@@ -11,40 +8,56 @@ namespace WeeboxSync
 
     class ProgramMain
     {
-        private static volatile WeeboxSync Weebox;
-        private static readonly object SyncLock = new object ();
-        private static volatile bool Syncing;
-
-        private static int DefaultInterval; //in minutes
-
-        private static bool setupOK;
+        private static WeeboxSync Weebox;
+        private static bool _setupOk;
+        private static int _defaultInterval; //in minutes
+        private static string _username;
+        private static string _rootFolder;
 
         [STAThread]
         public static void Main() {
-            setupOK = true;
+            #region main
+
+            _setupOk = true;
             
             if (IsFirstRun())
             {
-                setupOK = DoSetup();
+                _setupOk = DoSetup();
             }
+            else {
+                //iniciar nova instância
+                Weebox = new WeeboxSync ();
+                DataBaseAbstraction dba = new DataBaseAbstraction ();
+                ConnectionInfo ci = null;
+                try{
+                    GetRegistryKeys();
+                    ci = dba.GetConnectionInfo (_username);
+                } catch (Exception e) {
+                    MessageBox.Show("Erro ao recuperar credenciais de utilizador.", "Erro");
+                    return;
+                }
+                Weebox.connection_info = ci;
+                Weebox.saveRootFolder (_rootFolder);
+                Weebox.DefaultSyncInterval = _defaultInterval;
 
-            setupOK = false;
+            }//end else
 
-            if (!setupOK) {
+            if (!_setupOk) {
                 return;
             }
 
             //create sync timer thread
             Thread timer = new Thread (CheckSync);
+            //if the parent thread terminates, all the background threads terminate too
+            timer.IsBackground = true;
             timer.Start();
 
             //Create the tray icon
-            TrayApp ta = new TrayApp(Weebox);
+            TrayApp ta = new TrayApp(ref Weebox);
             Application.Run(ta);
 
-            timer.Abort();
-            timer.Join (1000);
-            
+            #endregion
+
             #region tests
 
             /*
@@ -142,73 +155,82 @@ namespace WeeboxSync
             #endregion
         }
 
+        private static void GetRegistryKeys() {
+            _rootFolder = (string) Microsoft.Win32.Registry.GetValue(
+                /*key*/    @"HKEY_CURRENT_USER\Software\KeepSolutions\Weebox",
+                /*value*/    "rootFolder",
+                /*default return value*/    "");
+            _username = (string) Microsoft.Win32.Registry.GetValue(
+                /*key*/    @"HKEY_CURRENT_USER\Software\KeepSolutions\Weebox",
+                /*value*/    "username",
+                /*default return value*/    "");
+            _defaultInterval = (int) Microsoft.Win32.Registry.GetValue(
+                /*key*/    @"HKEY_CURRENT_USER\Software\KeepSolutions\Weebox",
+                /*value*/    "syncInterval",
+                /*default return value*/    0);
+        }
+
         private static void CheckSync() {
-            Thread.Sleep (TimeSpan.FromMinutes (DefaultInterval));
-            bool sync = false;
+            Thread.Sleep (TimeSpan.FromMinutes (_defaultInterval));
             while(true) {
-                lock (SyncLock) {
-                    //decide here
-                    if(Syncing) {
-                        sync = false;
-                    } else {
-                        sync = true;
-                        Syncing = true;
-                    }
-                }
-                //apply here
-                if (sync)
-                {
-                    //Weebox.Sync();
-                    lock (SyncLock) {Syncing = false;}
-                }else {
-                    Thread.Sleep(TimeSpan.FromMinutes(DefaultInterval));
-                }
+                Weebox.SynchronizeAll();
+                Thread.Sleep(TimeSpan.FromMinutes(_defaultInterval));
             }
         }
 
         private static bool IsFirstRun() {
             var value = Microsoft.Win32.Registry.GetValue(
-                                 /*key*/    @"HKEY_CURRENT_USER\Software\KeepSolutions\Weebox",
-                               /*value*/    "rootFolder",
-                /*default return value*/    null);
+                    /*key*/    @"HKEY_CURRENT_USER\Software\KeepSolutions\Weebox",
+                    /*value*/    "rootFolder",
+                    /*default return value*/    null);
             return (value == null);
         }
 
         private static bool SaveRegistryKeys() {
-            Microsoft.Win32.RegistryKey key;
+            Microsoft.Win32.RegistryKey key = null;
             try {
                 key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey (@"Software\KeepSolutions\Weebox");
+                if(key == null)
+                    return false;
                 key.SetValue ("username", Weebox.connection_info.user.user);
                 key.SetValue ("rootFolder", Weebox.getRootFolder ());
-                //TODO - tocha - save time interval
                 key.SetValue ("syncInterval", Weebox.DefaultSyncInterval, RegistryValueKind.DWord);
-                
-                key.Close ();
-            } catch(Exception e) {
+            } catch (Exception e)
+            {
                 return false;
+            } finally {
+                if (key != null)
+                    key.Close();
             }
             return true;
         }
 
-        public static bool DoSetup()
+        private static void DeleteRegistryKeys() {
+            RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\KeepSolutions\Weebox", true);
+            if (key != null) {
+                key.DeleteValue ("username");
+                key.DeleteValue("rootFolder");
+                key.DeleteValue("syncInterval");
+                key.Close ();
+            }
+        }
+        private static bool DoSetup()
         {
             ConnectionInfo ci = null;
             Weebox = new WeeboxSync();
             int state = 1;
             bool cont = true;
-            DialogResult result;
 
-            /**
-             * Show welcome screen
-             */
+            //TODO - tocha - show welcome screen
             do {
-               /**
+                /**
                 * if dialog results are DialogResult.Retry,
                 * show the last form (back button was pressed)
                 * if the result is Cancel, setup is to be canceled entirely
                 * if the result is OK, follow to the next form, up until download.
                 */
-                
+
+                DialogResult result;
                 switch (state) {
                     case 1:
                         ci = new ConnectionInfo();
@@ -249,7 +271,19 @@ namespace WeeboxSync
                     case 4:
                         //setup successful, go to download
                         SaveRegistryKeys ();
-                        Weebox.setup ();
+                        DataBaseAbstraction dba = new DataBaseAbstraction ();
+                        dba.SaveConnectionInfo (Weebox.connection_info);
+                        try
+                        {
+                            Weebox.setup();
+                        }
+                        catch (Exception e) {
+                            //eliminar chaves de registo
+
+                            //eliminar pasta root
+                            FicheiroSystemAbstraction fsa = new FicheiroSystemAbstraction ();
+                            fsa.DeleteRecursiveFolder (Weebox.getRootFolder ());
+                        }
                         cont = false;
                         break;
                     case 5:
@@ -274,7 +308,5 @@ namespace WeeboxSync
             MessageBox.Show ("Setup done!, Now we rock!");
             return true;
         }
-
-        
     }
 }

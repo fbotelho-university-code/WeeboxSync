@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 
 namespace WeeboxSync
@@ -14,19 +11,17 @@ namespace WeeboxSync
         private NotifyIcon  trayIcon;
         private ContextMenu trayMenu;
 
-        public TrayApp(WeeboxSync instance)
+        public TrayApp(ref WeeboxSync instance)
         {
             weebox = instance;
-
             trayMenu = new ContextMenu();
             var menu = trayMenu.MenuItems;
-            //menu.
-
-            menu.Add("Force Sync", ForceSync);
-            menu.Add("Exit", OnExit);
-            
+            MenuItem m = new MenuItem("Force Sync", ForceSync);
+            menu.Add(0, m);
+            m = new MenuItem("Exit", OnExit);
+            menu.Add (1, m);
             trayIcon = new NotifyIcon {
-                                          Text = "WeeboxSync\nStarting....",
+                                          Text = "Weebox-Sync",
                                           Icon =
                                               new Icon(@"Icons\weebox_tray_icon2.ico"),
                                           ContextMenu = trayMenu,
@@ -36,10 +31,9 @@ namespace WeeboxSync
 
         private void ForceSync(object sender, EventArgs eventArgs)
         {
-            //TODO - force sync
-            //Console.Error.WriteLine("Not yet implemented");
+            if (!weebox.SynchronizeAll())
+                MessageBox.Show("Sincronização já está a decorrer.\nAguarde algum tempo e tente novamente.");
         }
-
 
         protected override void OnLoad(EventArgs e)
         {

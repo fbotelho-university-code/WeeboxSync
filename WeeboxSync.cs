@@ -1,37 +1,102 @@
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Collections.Concurrent;
 
 namespace WeeboxSync {
     public class WeeboxSync
     {
         public ConnectionInfo connection_info { get; set;  }
-        private  long bundle_serial_generator =0;
+        public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
+        public int DefaultSyncInterval { get; set; } //in minutes
+        
+        private  long bundle_serial_generator = 0;
         private List<Scheme> scheme; 
         private  String root_folder = null;
         private CoreAbstraction core;
         private FicheiroSystemAbstraction fileSystem; 
-        public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
         private String path_schemes= null;
         private String path_bundles= null;
-        public int DefaultSyncInterval { get; set; } //in minutes
+        private DataBaseAbstraction dataBase;
+        private readonly object SyncLock = new object ();
+        private readonly object BagLock = new object (); //controls access to the collection of to update bundle
+        private List<String> bundlesToUpdate;
 
         public WeeboxSync(){
             core = CoreAbstraction.getCore();
             fileSystem = new FicheiroSystemAbstraction();
+            dataBase = new DataBaseAbstraction ();
+            bundlesToUpdate = new List<string> ();
         }
-
+        /// <summary>
+        /// Adds a bundle to be updated when possible
+        /// </summary>
+        /// <param name="bundleID">The local ID of the bundle to update</param>
+        public void AddBundleToUpdateQueue(string bundleID)
+        {
+            Monitor.Enter(BagLock);
+            try
+            {
+                //só adicionamos o bundle se ele não estiver à espera de ser sincronizado
+                if(!bundlesToUpdate.Contains (bundleID))
+                    bundlesToUpdate.Add(bundleID);
+            }
+            finally {
+                Monitor.Exit (BagLock);
+            }
+        }
+        /// <summary>
+        /// Attempts to synchronize this weebox instance
+        /// </summary>
+        /// <returns>true if the instance was synchronized, false if the synchronize process is already ongoing</returns>
+        public bool SynchronizeAll()
+        {
+            //try to acquire lock and exit if 1 millisecond passes without it happening
+            if (Monitor.TryEnter(SyncLock, 1))
+            {//lock acquired
+                try {
+                    Thread t = new Thread (syncBundles) {IsBackground = true};
+                    t.Start ();
+                } finally {
+                    Monitor.Exit (SyncLock);
+                }
+            }
+            else {
+                //acquire failed
+                return false;
+            }
+            return true;
+        }
+        private void SyncQueuedBundles()
+        {
+            Monitor.Enter(BagLock);
+            try
+            {
+                foreach (var bundleID in bundlesToUpdate) {
+                    syncBundle (bundleID);
+                }
+            }
+            finally {
+                Monitor.Exit (BagLock);
+            }
+        }
         public String getRootFolder(){
             return root_folder; 
         }
 
+        public void saveRootFolder(string root) {
+            root_folder = root;
+            path_schemes = root + "\\Schemes";
+            path_bundles = root + "\\bundles";
+        }
+
         /// <summary>
-        /// 
+        /// Sets and creates the root folders of this weebox instance
         /// </summary>
         /// a handfull of exceptions
-        /// <param name="s"></param>
+        /// <param name="s">The path where to create the root folders</param>
         /// <returns></returns>
         public bool setRootFolder(string s){
             string path = s + "\\My Weebox";
@@ -53,14 +118,14 @@ namespace WeeboxSync {
                 this.path_bundles = "";
                 return false;     
             }
-//            else throw new ArgumentOutOfRangeException();
-            
         }
 
         public void setDefaultRootFolder(){
             this.setRootFolder(this.default_root_folder); 
         }
-
+        /// <summary>
+        /// Downloads all the schemes and bundles in the server. All info needed for the process should be set
+        /// </summary>
         public void setup(){
             core.SetConnection(this.connection_info);
 
@@ -89,7 +154,6 @@ namespace WeeboxSync {
                     _createFolderForTag(t, scheme);
                 }
             }
-
         }
 
         public void GetNewBundles() {
@@ -99,9 +163,7 @@ namespace WeeboxSync {
         public void TestaConexao(object server, object porta, object proxy) {
             throw new System.Exception("Not implemented");
         }
-
-
-
+        
          public  void syncScheme(){
              List<Scheme> newScheme = core.getSchemesFromServer();
              foreach (Scheme s in newScheme){
@@ -111,7 +173,7 @@ namespace WeeboxSync {
                              fileSystem.CreateROFolder(t.Path);
                          }
                          catch (Exception e){
-                             Console.Error.WriteLine("Abruptley terminate program");
+                             Console.Error.WriteLine("Abruptly terminate program");
                              Console.Read();
                          }
                  }
@@ -126,7 +188,7 @@ namespace WeeboxSync {
                                  fileSystem.DeleteRecursiveFolder(t.Path);
                              }
                              catch (Exception e){
-                                 Console.WriteLine("Abruptley terminate program");
+                                 Console.WriteLine("Abruptly terminate program");
                              }
                          }
                      }
@@ -138,7 +200,7 @@ namespace WeeboxSync {
              scheme = newScheme;
          }
 
-        public void syncBundles(){
+        private void syncBundles(){
              // sync bundles 
             List<String> allBundlesInServer = core.GetAllBundlesList(); 
             //get all bundles in bd 
@@ -149,46 +211,52 @@ namespace WeeboxSync {
                      //bundle has been removed from file system 
                      //TODO - create Folder 
                  }
-            }
+        }
+        /// <summary>
+        /// Synchronize one bundle
+        /// </summary>
+        /// <param name="bundleId">The LOCAL ID of the bundle to be synchronized</param>
+        /// <returns></returns>
+        public bool syncBundle(String bundleId) {
+            return syncBundle (dataBase.GetBundle (bundleId));
+        }
+        /// <summary>
+        /// Synchronize one bundle
+        /// </summary>
+        /// <param name="bundle">The bundle to be synchronized</param>
+        /// <returns></returns>
+        public bool syncBundle(Bundle bundle){
+            String bundle_lastest_version_id = core.GetLatestVersionIdFromServer(bundle.weeId);
+            {
+                if (bundle_lastest_version_id == null){
+                    //bundle foi eliminado do servidor
+                    //deleteBundleFromBD
+                    //delete bundle from FS
+                    fileSystem.DeleteRecursiveFolder(bundle.getPath(path_bundles));
 
-
-            public bool syncBundles(String bundleId){
-         
-                return true;      // TOdo read from db Bundle and call syncBundle(Bundle)
-            }
-
-            public bool syncBundle(Bundle bundle){
-                String bundle_lastest_version_id = core.GetLatestVersionIdFromServer(bundle.weeId);
-                {
-                    if (bundle_lastest_version_id == null){
-                        //bundle foi eliminado do servidor
-                        //deleteBundleFromBD
-                        //delete bundle from FS
-                        fileSystem.DeleteRecursiveFolder(bundle.getPath(path_bundles));
-
-                        //deleting all the links to the bundle
-                        foreach (String t in bundle.weeTags){
-                            Tag tag;
-                            if ((tag = Scheme.getTagByWeeIds(t, scheme)) != null){
-                                fileSystem.DeleteFile(tag.Path + "\\" + bundle.localId + ".lnk"); //tags exists 
-                            }
-                            //else .... -> if the tags have been removed we don't care.
+                    //deleting all the links to the bundle
+                    foreach (String t in bundle.weeTags){
+                        Tag tag;
+                        if ((tag = Scheme.getTagByWeeIds(t, scheme)) != null){
+                            fileSystem.DeleteFile(tag.Path + "\\" + bundle.localId + ".lnk"); //tags exists 
                         }
-                        return false; 
+                        //else .... -> if the tags have been removed we don't care.
                     }
-                    if (bundle_lastest_version_id == bundle.weeId){
-                        //Bundle doesn't has a new version on server
-                        sync_with_no_new_version(bundle);
-                        return true; 
-                    }
-                    else{
-                        //bundle has a new version on server
-                        sync_with_new_version(bundle);
-                        return true; 
-                    }
+                    return false; 
+                }
+                if (bundle_lastest_version_id == bundle.weeId){
+                    //Bundle doesn't has a new version on server
+                    sync_with_no_new_version(bundle);
                     return true; 
                 }
+                else{
+                    //bundle has a new version on server
+                    sync_with_new_version(bundle);
+                    return true; 
+                }
+                return true; 
             }
+        }
 
         private void sync_with_new_version(Bundle bundle){
 
@@ -227,9 +295,6 @@ namespace WeeboxSync {
             }
             return true; //has created bundle
         }
-
-
-        private ConnectionInfo connectionInfo;
     }
 
 
