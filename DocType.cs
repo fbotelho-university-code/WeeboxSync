@@ -27,6 +27,7 @@ namespace WeeboxSync {
             id = label = description = "";
             deflt = false; 
             fields = new List<Field>();
+            tagFields = new List<Field>(); 
         }
 
         public override string  ToString(){

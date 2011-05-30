@@ -48,15 +48,15 @@ namespace WeeboxSync {
 
     public class CoreAbstraction {
         private static CoreAbstraction core = null;
-        private CoreAbstraction (){}
-        public Dictionary<String, DocType> docTypes = new Dictionary<string, DocType>(); 
+        private CoreAbstraction() { }
+        public Dictionary<String, DocType> docTypes = new Dictionary<string, DocType>();
 
 
         /// <summary>
         /// Instantiate private Core Abstraction 
         /// </summary>
         /// <returns>The only CoreAbstraction instance present</returns>
-        public static CoreAbstraction getCore() { if (core == null) return new CoreAbstraction(); else return core;  }
+        public static CoreAbstraction getCore() { if (core == null) return new CoreAbstraction(); else return core; }
         private HttpClient _client;
         private ConnectionInfo _conInfo;
         private bool _connection = false;
@@ -65,24 +65,24 @@ namespace WeeboxSync {
         /// Sets the connection information to contact the server. 
         /// </summary>
         /// <param name="con"> The connection information</param>
-        public void SetConnection(ConnectionInfo con){
+        public void SetConnection(ConnectionInfo con) {
             _conInfo = con;
-            if (con.address != null){
+            if (con.address != null) {
                 _client = new HttpClient(con.address.ToString());
             }
-            if (con.user != null){
+            if (con.user != null) {
                 _client.TransportSettings.Credentials = new NetworkCredential(con.user.user, con.user.pass);
             }
             if (con.useProxy && con.proxy != null) {
                 _client.TransportSettings.Proxy = new WebProxy(con.proxy);
             }
-            _client.TransportSettings.PreAuthenticate = true; 
+            _client.TransportSettings.PreAuthenticate = true;
         }
 
         /**
          * Returns null if no scheme is returned
          */
-        public List<Scheme> getSchemesFromServer(){
+        public List<Scheme> getSchemesFromServer() {
             //TODO - ALOT , exceptions , null values , empty values, server errors , validate xml input in these and look a like methods
 
             HttpResponseMessage resp = null;
@@ -97,7 +97,7 @@ namespace WeeboxSync {
                 }
             }
 
-            _checkAndThrowsExceptions(resp.StatusCode, "getSchemesFromServer"); 
+            _checkAndThrowsExceptions(resp.StatusCode, "getSchemesFromServer");
             String schemes = resp.Content.ReadAsString();
             String[] planos = schemes.Split('\n');
             List<Scheme> lista = new List<Scheme>();
@@ -112,7 +112,7 @@ namespace WeeboxSync {
             return (lista.Count != 0) ? lista : null;
         }
 
-        private  Scheme getScheme(string rootID) {
+        private Scheme getScheme(string rootID) {
             //TODO - check every , see getSchemes comments
             HttpResponseMessage resp = null;
             bool bo = true;
@@ -137,10 +137,10 @@ namespace WeeboxSync {
             XElement raiz = rootElement.Element(_getSkoName("ConceptScheme"));
 
             Tag rootTag = new Tag(raiz.Value, raiz.Value, "Q2W1C42bT6");
-            Scheme scheme = new Scheme( "Q2W1C42bT6", rootTag);
+            Scheme scheme = new Scheme("Q2W1C42bT6", rootTag);
             //<id,label> 
             IEnumerable<Tuple<string, string>> lista = _getFirstLevelChilds(rootElement);
-            
+
             foreach (Tuple<String, String> tup in lista) {
                 string myPath = rootTag.Path + "\\" + tup.Item2;
                 Tag t = new Tag(tup.Item2, myPath, tup.Item1);
@@ -152,7 +152,7 @@ namespace WeeboxSync {
             return scheme;
         }
 
-        public List<Bundle> GetAllBundles(){
+        public List<Bundle> GetAllBundles() {
             throw new System.Exception("Not implemented");
         }
 
@@ -188,7 +188,6 @@ namespace WeeboxSync {
                     if (matche.Groups.Count >= 1) {
                         Group group = matche.Groups[2];
                         lista.Add(group.Value);
-                        Console.WriteLine(group.Value);
                     }
                 }
             }
@@ -218,7 +217,7 @@ namespace WeeboxSync {
                 XElement rootElement = meta.Root;
 
                 MetaData metaData = new MetaData();
-                foreach (XElement e in rootElement.Descendants()){
+                foreach (XElement e in rootElement.Descendants()) {
                     //TODO - clean up the house, maybe read the attributes one by one into real values and types
                     if (!e.Value.Equals("")) metaData.keyValueData.Add(e.FirstAttribute.Value, e.Value);
 
@@ -243,6 +242,7 @@ namespace WeeboxSync {
                         continue;
                     }
                 }
+
                 resp.EnsureStatusIsSuccessful();
                 Stream s = resp.Content.ReadAsStream();
                 XDocument meta = XDocument.Load(s);
@@ -260,29 +260,29 @@ namespace WeeboxSync {
             }
         }
 
-        public Bundle getBundleInfo(string bundleId){
-            Bundle toBeBundle = new Bundle {meta = GetAllMetaFromBundle(bundleId), weeId = bundleId};
-            if (toBeBundle == null|| toBeBundle.meta == null)  return null;
+        public Bundle getBundleInfo(string bundleId) {
+            Bundle toBeBundle = new Bundle { meta = GetAllMetaFromBundle(bundleId), weeId = bundleId };
+            if (toBeBundle == null || toBeBundle.meta == null) return null;
 
-            if (toBeBundle.meta.keyValueData.ContainsKey("dc.type")){
-                String idDocType = toBeBundle.meta.keyValueData["dc.type"]; 
-                if (this.docTypes[idDocType] == null){
+            if (toBeBundle.meta.keyValueData.ContainsKey("dc.type")) {
+                String idDocType = toBeBundle.meta.keyValueData["dc.type"];
+                if (!this.docTypes.ContainsKey(idDocType)) {
                     //try to get new docTypes
-                    this.docTypes = getDocTypes(); 
+                    this.docTypes = getDocTypes();
                 }
-            
-                if (this.docTypes[idDocType] == null){
+
+                if (!this.docTypes.ContainsKey(idDocType)) {
                     //still don't know the doc type return null 
-                    return null; 
+                    return null;
                 }
-                toBeBundle.type = this.docTypes[idDocType]; 
+                toBeBundle.type = this.docTypes[idDocType];
             }
-            _parseBundleTags(ref toBeBundle); 
+            _parseBundleTags(ref toBeBundle);
             _extracFilesInfo(ref toBeBundle);
-            return toBeBundle; 
+            return toBeBundle;
         }
 
-        private void _extracFilesInfo(ref Bundle toBeBundle){
+        private void _extracFilesInfo(ref Bundle toBeBundle) {
             string bundleId = toBeBundle.weeId;
             List<String> ids = toBeBundle.meta.getFilesMd5s();
             List<Ficheiro> files = new List<Ficheiro>();
@@ -318,15 +318,15 @@ namespace WeeboxSync {
             }
         }
 
-        private void _parseBundleTags(ref Bundle toBeBundle){
+        private void _parseBundleTags(ref Bundle toBeBundle) {
             List<String> tags = new List<String>();
 
-            foreach (DocType.Field field in toBeBundle.type.tagFields){
-                if (toBeBundle.meta.keyValueData.ContainsKey(field.id)){
+            foreach (DocType.Field field in toBeBundle.type.tagFields) {
+                if (toBeBundle.meta.keyValueData.ContainsKey(field.id)) {
                     string toParse = "";
-                    toBeBundle.meta.keyValueData.TryGetValue("user.0", out toParse);
+                    toBeBundle.meta.keyValueData.TryGetValue(field.id, out toParse);
                     String[] strs = Regex.Split(toParse, ";;");
-                    foreach (String st in strs){
+                    foreach (String st in strs) {
                         String[] tagss = Regex.Split(st, "::");
                         tags.Add(tagss.Last<String>().Trim());
                     }
@@ -335,33 +335,34 @@ namespace WeeboxSync {
             toBeBundle.weeTags = tags;
         }
 
-        public Bundle getBundle(string bundleId, string downloadPath){
+        public Bundle getBundle(string bundleId, string downloadPath) {
             Bundle toBeBundle = getBundleInfo(bundleId);
             if (toBeBundle == null) return null;
 
             HttpResponseMessage resp = null;
             bool bo = true;
 
-            while (bo){
-                try{
+            while (bo) {
+                try {
                     resp =
                         _client.Get("core/bundle/" + bundleId + "?encodeFileName=true");
                     bo = false;
                 }
-                catch (HttpStageProcessingException e){
+                catch (HttpStageProcessingException e) {
                     continue;
                 }
             }
 
             // resp.EnsureStatusIsSuccessful();
             //alter the files path set by getBundleInfo 
-            toBeBundle.filesPath.Select((Ficheiro x) => x.path = downloadPath + "\\" + x.name);
+
+            toBeBundle.filesPath.ForEach((Ficheiro x) => x.path = downloadPath + "\\" + x.name);
 
             //zip case)
-            if (toBeBundle.filesPath.Count > 1){
+            if (toBeBundle.filesPath.Count > 1) {
                 Stream files = resp.Content.ReadAsStream();
                 string zip_path = downloadPath + "\\" + bundleId + ".zip";
-                if (File.Exists(zip_path)){
+                if (File.Exists(zip_path)) {
                     File.Delete(zip_path);
                 }
 
@@ -372,7 +373,8 @@ namespace WeeboxSync {
 
                 List<Ficheiro> ficheiros = new List<Ficheiro>();
 
-                using (ZipFile zip = ZipFile.Read(zip_path)){
+                using (
+                    ZipFile zip = ZipFile.Read(zip_path)) {
                     //TODO - what if files exists? 
                     zip.ExtractExistingFile = ExtractExistingFileAction.OverwriteSilently;
                     zip.ExtractAll(downloadPath);
@@ -382,12 +384,11 @@ namespace WeeboxSync {
                 }
                 File.Delete(zip_path);
             }
-
-            if (toBeBundle.filesPath.Count == 1){
+            if (toBeBundle.filesPath.Count == 1) {
                 Ficheiro file = toBeBundle.filesPath.First();
                 Stream files = resp.Content.ReadAsStream();
                 string file_path = downloadPath + "\\" + file.name;
-                if (File.Exists(file_path)){
+                if (File.Exists(file_path)) {
                     File.Delete(file_path);
                 }
                 FileStream f = File.OpenWrite(file_path);
@@ -400,45 +401,39 @@ namespace WeeboxSync {
             return toBeBundle;
         }
 
-        public Dictionary<String,DocType> getDocTypes(){
-            HttpResponseMessage resp  = _client.Get("manager/api?operation=getDocTypes");
+        public Dictionary<String, DocType> getDocTypes() {
+            HttpResponseMessage resp = _client.Get("manager/api?operation=getDocTypes");
             resp.EnsureStatusIsSuccessful();
-            String[] docs = resp.Content.ReadAsString().Split('\n'); 
-            Dictionary<String, DocType>  map = new Dictionary<String,DocType>();
+            String[] docs = resp.Content.ReadAsString().Split('\n');
+            Dictionary<String, DocType> map = new Dictionary<String, DocType>();
 
-            for (int i = 0; i < docs.Length; i++){
-                if (docs[i] != ""){
+            for (int i = 0; i < docs.Length; i++) {
+                if (docs[i] != "") {
                     resp = _client.Get("manager/api?operation=getDocType&docType=" + docs[i]);
                     resp.EnsureStatusIsSuccessful();
-                    DocType  doc = DocType.readAsXelement(resp.Content.ReadAsXElement()); 
-                    if (doc != null){
+                    DocType doc = DocType.readAsXelement(resp.Content.ReadAsXElement());
+                    if (doc != null) {
                         map.Add(doc.id, doc);
                     }
-                    Console.WriteLine(doc.ToString());
                 }
 
-                Console.WriteLine("-----------------------------------------------------------");
             }
-            return map; 
+            return map;
         }
 
-        public List<Ficheiro> GetFicheiros(String bundleid) {
-            throw new System.Exception("Not implemented");
-        }
-        public void GetFicheiro(String Ficheiroid, String bundleid) {
-            throw new System.Exception("Not implemented");
-        }
 
-        public  String GetLatestVersionIdFromServer(string bundleId){
-           MetaData meta =  this.GetMetaFromBundle(bundleId);
-            if (meta.keyValueData.ContainsKey("bundle.active")){
-                if (meta.keyValueData["active"] == "false") return null; 
+        public String GetLatestVersionIdFromServer(string bundleId) {
+            MetaData meta = this.GetMetaFromBundle(bundleId);
+            if (meta.keyValueData.ContainsKey("bundle.active")) {
+                if (meta.keyValueData["bundle.active"] == "false") return null;
             }
-          return   meta.keyValueData.ContainsKey("bundle.has.new.version") ? GetLatestVersionIdFromServer(meta.keyValueData["bundle.has.new.version"]) : bundleId;
+            return meta.keyValueData.ContainsKey("bundle.has.new.version") ? GetLatestVersionIdFromServer(meta.keyValueData["bundle.has.new.version"]) : bundleId;
         }
 
-        public Bundle GetLatestVersionFromServer(String bundleid) {
-            throw new System.Exception("Not implemented");
+
+        public Bundle GetLatestVersionFromServer(String bundleid){
+            string latest = GetLatestVersionIdFromServer(bundleid); 
+            return (latest == null ) ?   null :   getBundleInfo(latest); 
         }
 
         private static String _getRDFName(String s) { return "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}" + s; }
@@ -499,9 +494,9 @@ namespace WeeboxSync {
 
 
 
-        public Tuple<String, List<String>>  RemoveFicheiros(String bundleid, List<Ficheiro> files){
+        public Tuple<String, List<String>> RemoveFicheiros(String bundleid, List<Ficheiro> files) {
             List<String> file_names = files.ConvertAll((Ficheiro x) => x.md5);
-            return this.RemoveFicheiros(bundleid, file_names); 
+            return this.RemoveFicheiros(bundleid, file_names);
         }
 
         /// <summary>
@@ -510,10 +505,10 @@ namespace WeeboxSync {
         /// <param name="bundleId"></param>
         /// <param name="files"></param>
         /// <returns>Bundle id , removed files</returns>
-        public Tuple<String,List<String>>  RemoveFicheiros(String bundleId, List<String>  files){
-            string fullResponse = bundleId; 
+        public Tuple<String, List<String>> RemoveFicheiros(String bundleId, List<String> files) {
+            string fullResponse = bundleId;
             List<String> removed = new List<string>(files);
-            foreach (String file in files){
+            foreach (String file in files) {
                 string postUrl =
                 "http://photo.weebox.keep.pt/core/bundle/" + fullResponse + "?operation=updateFiles";
                 Dictionary<string, object> postParameters = new Dictionary<string, object>();
@@ -521,57 +516,63 @@ namespace WeeboxSync {
                 HttpWebResponse webResponse = MultipartFormDataPost(postUrl, postParameters);
                 StreamReader responseReader = new StreamReader(webResponse.GetResponseStream());
                 fullResponse = responseReader.ReadToEnd();
-                removed.Remove(file); 
-                Console.WriteLine(fullResponse);
+                removed.Remove(file);
             }
-            return new Tuple<String,List<String>>(fullResponse,removed);
-            Console.Read(); 
+            return new Tuple<String, List<String>>(fullResponse, removed);
         }
+ 
+
+        public String PutFicheiro(string weeId, Ficheiro  file){
+            return PutFicheiros(weeId, new List<Ficheiro>() {file}); 
+        }
+ 
+ 
+        public Tuple<String,List<String>> RemoveFicheiro(String weeId, String fileId){
+            return RemoveFicheiros(weeId, new List<String>(){fileId}); 
+        }
+
 
         /// <summary>
         /// </summary>
         /// <param name="bundleid"></param>
         /// <param name="files"></param>
-       public String PutFicheiros(String bundleid, List<Ficheiro> files){
-                Bundle bundle = getBundleInfo(bundleid);
-                //Remover ficheiros com md5s iguais de files e corrigir nomes
+        public String PutFicheiros(String bundleid, List<Ficheiro> files) {
+            Bundle bundle = getBundleInfo(bundleid);
+            //Remover ficheiros com md5s iguais de files e corrigir nomes
+            if (bundle == null) return null; 
 
-
-           foreach (Ficheiro file in bundle.filesPath){
-                    files.RemoveAll((Ficheiro x) => x.md5 == file.md5);
-                    IEnumerable<Ficheiro> files_repetidos = files.FindAll((Ficheiro x) => x.name == file.name);
-                    int i = 0;
-                    foreach (Ficheiro dup in files_repetidos){
-                        dup.name = dup.name + "_Duplicate_copy_" + 0;
-                    }
+            foreach (Ficheiro file in bundle.filesPath) {
+                files.RemoveAll((Ficheiro x) => x.md5 == file.md5);
+                IEnumerable<Ficheiro> files_repetidos = files.FindAll((Ficheiro x) => x.name == file.name);
+                int i = 0;
+                foreach (Ficheiro dup in files_repetidos) {
+                    dup.name = dup.name + "_Duplicate_copy_" + 0;
                 }
+            }
 
-                // Generate post objects
-                Dictionary<string, object> postParameters = new Dictionary<string, object>();
-                postParameters.Add("bundle.has.new.version", "undefined");
-                foreach (Ficheiro file in files){
-                    // Read file data
-                    FileStream fs = new FileStream(file.path, FileMode.Open, FileAccess.Read);
-                    byte[] data = new byte[fs.Length];
-                    fs.Read(data, 0, data.Length);
-                    fs.Close();
+            // Generate post objects
+            Dictionary<string, object> postParameters = new Dictionary<string, object>();
+            postParameters.Add("bundle.has.new.version", "undefined");
+            foreach (Ficheiro file in files) {
+                // Read file data
+                FileStream fs = new FileStream(file.path, FileMode.Open, FileAccess.Read);
+                byte[] data = new byte[fs.Length];
+                fs.Read(data, 0, data.Length);
+                fs.Close();
 
-                    postParameters.Add("encoded.filename=" + file.name, file.name);
-                    postParameters.Add(file.name, new FileParameter(data, file.name, "charset=UTF-8"));
-                }
-           
-           string postUrl =
-                    "http://photo.weebox.keep.pt/core/bundle/" + bundleid +  "?operation=updateFiles";
-          
-           HttpWebResponse webResponse = MultipartFormDataPost(postUrl, postParameters);
-           StreamReader responseReader = new StreamReader(webResponse.GetResponseStream());
-           string fullResponse = responseReader.ReadToEnd();
+                postParameters.Add("encoded.filename=" + file.name, file.name);
+                postParameters.Add(file.name, new FileParameter(data, file.name, "charset=UTF-8"));
+            }
 
-           Console.WriteLine(fullResponse);
-           return fullResponse; 
+            string postUrl =
+                     "http://photo.weebox.keep.pt/core/bundle/" + bundleid + "?operation=updateFiles";
+
+            HttpWebResponse webResponse = MultipartFormDataPost(postUrl, postParameters);
+            StreamReader responseReader = new StreamReader(webResponse.GetResponseStream());
+            string fullResponse = responseReader.ReadToEnd();
+
+            return fullResponse;
         }
-
-
 
         private static readonly Encoding encoding = Encoding.UTF8;
         private long _boundary = 28947758029299;
@@ -581,14 +582,14 @@ namespace WeeboxSync {
             string formDataBoundary = "-----------------------------" + value;
             string contentType = "multipart/form-data; boundary=" + formDataBoundary;
 
-            byte[] formData = GetMultipartFormData(postParameters, formDataBoundary);
+            byte[] formData = GetMultipartFormData(postParameters,formDataBoundary);
 
             return PostForm(postUrl, contentType, formData);
         }
 
         private HttpWebResponse PostForm(string postUrl, string contentType, byte[] formData) {
 
-             HttpWebRequest request = WebRequest.Create(postUrl) as HttpWebRequest;
+            HttpWebRequest request = WebRequest.Create(postUrl) as HttpWebRequest;
 
             if (request == null) {
                 throw new NullReferenceException("request is not a http request");
@@ -597,15 +598,15 @@ namespace WeeboxSync {
             // Set up the request properties
             request.Method = "POST";
             request.Credentials = _client.TransportSettings.Credentials;
-            request.PreAuthenticate = true; 
+            request.PreAuthenticate = true;
             request.ContentType = contentType;
             request.ContentLength = formData.Length;  // We need to count how many bytes we're sending. 
             request.KeepAlive = true;
             request.Pipelined = true;
             request.AllowWriteStreamBuffering = true;
             request.SendChunked = true;
-            if (formData.Length >= (1024 * 1024)){
-                request.Timeout = 1000*formData.Length*8/10000;
+            if (formData.Length >= (1024 * 1024)) {
+                request.Timeout = 1000 * formData.Length * 8 / 10000;
             }
 
             using (Stream requestStream = request.GetRequestStream()) {
@@ -613,15 +614,12 @@ namespace WeeboxSync {
                 requestStream.Write(formData, 0, formData.Length);
                 requestStream.Close();
             }
-
-
             return request.GetResponse() as HttpWebResponse;
         }
 
 
         private byte[] GetMultipartFormData(Dictionary<string, object> postParameters, string boundary) {
             Stream formDataStream = new System.IO.MemoryStream();
-
             foreach (var param in postParameters) {
                 if (param.Value is FileParameter) {
                     FileParameter fileToUpload = (FileParameter)param.Value;
@@ -637,19 +635,19 @@ namespace WeeboxSync {
                     // Write the file data directly to the Stream, rather than serializing it to a string.
                     formDataStream.Write(fileToUpload.File, 0, fileToUpload.File.Length);
                     // Thanks to feedback from commenters, add a CRLF to allow multiple files to be uploaded
-                    formDataStream.Write(encoding.GetBytes("\r\n"), 0, 2);
+                   // formDataStream.Write(encoding.GetBytes("\r\n"), 0, 2);
                 }
                 else {
                     if (param.Key == "removeFile") {
-                            string postData =
-                                //  string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
-                                string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}",
-                                              boundary,
-                                              param.Key,
-                                              param.Value);
-                            formDataStream.Write(encoding.GetBytes(postData), 0, postData.Length);
-                        }
-                    else{
+                        string postData =
+                            //  string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
+                            string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}",
+                                          boundary,
+                                          param.Key,
+                                          param.Value);
+                        formDataStream.Write(encoding.GetBytes(postData), 0, postData.Length);
+                    }
+                    else {
                         string postData =
                               string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}\r\n",
                             //string.Format("--{0}\r\nContent-Disposition: form-data; name=\"{1}\"\r\n\r\n{2}",
@@ -662,8 +660,8 @@ namespace WeeboxSync {
             }
 
             // Add the end of the request
-                string footer = "\r\n--" + boundary + "--\r\n";
-                formDataStream.Write(encoding.GetBytes(footer), 0, footer.Length);
+            string footer = "\r\n--" + boundary + "--\r\n";
+            formDataStream.Write(encoding.GetBytes(footer), 0, footer.Length);
 
             // Dump the Stream into a byte[]
             formDataStream.Position = 0;
@@ -672,7 +670,7 @@ namespace WeeboxSync {
             formDataStream.Close();
             return formData;
         }
-                
+
         public class FileParameter {
             public byte[] File { get; set; }
             public string FileName { get; set; }
@@ -687,25 +685,45 @@ namespace WeeboxSync {
         }
 
 
-        private void _checkAndThrowsExceptions(HttpStatusCode statusCode, string context){
-            switch(statusCode){
-                case HttpStatusCode.OK: 
-                    return; 
+        private void _checkAndThrowsExceptions(HttpStatusCode statusCode, string context) {
+            switch (statusCode) {
+                case HttpStatusCode.OK:
+                    return;
                 case HttpStatusCode.Created:
-                    return; 
-                case HttpStatusCode.Unauthorized :
-                    throw new AccessDeniedException(); 
-                case HttpStatusCode.InternalServerError : 
+                    return;
+                case HttpStatusCode.Unauthorized:
+                    throw new AccessDeniedException();
+                case HttpStatusCode.InternalServerError:
                     throw new ServerErrorException();
-                default: 
-                    throw new HttpError(statusCode , context);
+                default:
+                    throw new HttpError(statusCode, context);
             }
         }
 
-
-     
+        public bool GetFicheiro(String bundleId, String md5, String downloadPath){
+            HttpResponseMessage resp = null;
+            bool bo = true;
+            while (bo){
+                try{
+                    resp =
+                        _client.Get("core/file/" + bundleId + "/ " + md5 + "?encodeFileName=true");
+                    bo = false;
+                }
+                catch (HttpStageProcessingException e){
+                    continue;
+                }
+            }
+            Stream files = resp.Content.ReadAsStream();
+            string file_path = downloadPath;
+            FileStream f = File.OpenWrite(file_path);
+            files.CopyTo(f);
+            f.Flush();
+            f.Close();
+            List<Ficheiro> ficheiros = new List<Ficheiro>();
+            ficheiros.Add(new Ficheiro(file_path, bundleId, true));
+            return true;
+            }
+        }
     }
-
-}
 
 

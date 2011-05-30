@@ -83,23 +83,37 @@ namespace WeeboxSync {
         }
 
         /// <summary>
-        /// Returns Md5,Path list present in folder
+        /// Returns files in folder. 
         /// </summary>
         /// <param name="path">The folder from wich we build the results </param>
         /// <returns></returns>
-        public List<Tuple<String,String>> GetFicheiroIDSFromFolder(String path) {
-            
-            List<Tuple<String,String>> md5s = new List<Tuple<String,String>>();
+
+        public List<Ficheiro> getFicheirosFromFolder(String path, string bundleId){
+            List<Ficheiro> files = new List<Ficheiro>();
             foreach (String fpath in Directory.EnumerateFiles(path)) {
-                try {
-                    String md5 = Ficheiro.getFilesMD5Hash(fpath);
-                    md5s.Add(new Tuple<string, string>(md5,fpath));
+                try{
+                    Ficheiro file = new Ficheiro(fpath, bundleId, true);
+                    files.Add(file);
                 }
-                catch (Exception e) {
-                    return null;
+                catch (Exception e){
+                    try{
+                        String tempPath = System.IO.Path.GetTempPath();
+                        String filePath = tempPath + System.IO.Path.GetFileName(fpath); 
+                        System.IO.File.Copy(fpath, filePath, true);
+                        files.Add(new Ficheiro(filePath, bundleId,true));
+                    }
+                    catch (IOException e2){
+                        return null; 
+                    }
                 }
             }
-            return md5s; 
+            return files; 
+        }
+
+        public void RenameFile(string path , string newpath){
+            if (System.IO.File.Exists(path)){
+                System.IO.File.Move(path, newpath);
+            }
         }
     }
 }

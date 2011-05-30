@@ -59,9 +59,13 @@ namespace WeeboxSync {
         public string name { get; set;  }
 
         private string getName(){
+            if (!path.Contains("\\")){
+                return path;
+            }
             String s = "" + path;
             int lastInfexOF   = s.LastIndexOf("\\");
-            return s.Remove(0, lastInfexOF+2 ); 
+            return s.Remove(0, lastInfexOF+1 ); 
+
         }
 
         /// <summary>
@@ -73,6 +77,7 @@ namespace WeeboxSync {
             if (readMd5){
                 this.md5 = Ficheiro.getFilesMD5Hash(path);
             }
+
             this.path = path;
             this.name = getName(); 
             this.bundleId = null;
