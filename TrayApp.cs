@@ -26,9 +26,14 @@ namespace WeeboxSync
                                               new Icon(@"Icons\weebox_tray_icon2.ico"),
                                           ContextMenu = trayMenu,
                                           Visible = true
-                                      };
+            };
         }
-
+        private void setUserCredentials() {
+            
+        }
+        private void setConnectionInfo() {
+            
+        }
         private void ForceSync(object sender, EventArgs eventArgs)
         {
             if (!weebox.SynchronizeAll())

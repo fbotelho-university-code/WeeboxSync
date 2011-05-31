@@ -17,7 +17,7 @@ namespace WeeboxSync {
         private  String root_folder = null;
         private CoreAbstraction core;
         private FicheiroSystemAbstraction fileSystem;
-        private DataBaseAbstraction db; 
+        private DataBaseAbstraction dataBase; 
         private String path_schemes= null;
         private String path_bundles= null;
 
@@ -28,7 +28,7 @@ namespace WeeboxSync {
         public WeeboxSync(){
             core = CoreAbstraction.getCore();
             fileSystem = new FicheiroSystemAbstraction();
-            db = new DataBaseAbstraction(); 
+            dataBase = new DataBaseAbstraction(); 
             bundlesToUpdate = new List<string> ();
         }
         /// <summary>
@@ -40,6 +40,7 @@ namespace WeeboxSync {
             Monitor.Enter(BagLock);
             try
             {
+                //TODO - tocha - try to sync if queue empty
                 //só adicionamos o bundle se ele não estiver à espera de ser sincronizado
                 if(!bundlesToUpdate.Contains (bundleID))
                     bundlesToUpdate.Add(bundleID);
@@ -190,14 +191,14 @@ namespace WeeboxSync {
 
              //update classification scheme in bd 
              scheme = newScheme;
-             db.SaveClassificationScheme(scheme);
+             dataBase.SaveClassificationScheme(scheme);
          }
 
         private void syncBundles(){
              // sync bundles 
              List<String> allBundlesInServer = core.GetAllBundlesList();
              //get all bundles in bd 
-             List<Bundle> allBundlesInFS = db.GetAllBundles(); 
+             List<Bundle> allBundlesInFS = dataBase.GetAllBundles(); 
 
              foreach (Bundle bundle in allBundlesInFS){
                  String lastest_version = syncBundle(bundle);
@@ -214,7 +215,7 @@ namespace WeeboxSync {
         /// </summary>
         /// <param name="bundleId">The LOCAL ID of the bundle to be synchronized</param>
         /// <returns></returns>
-        public bool syncBundle(String bundleId) {
+        public string syncBundle(String bundleId) {
             return syncBundle (dataBase.GetBundle (bundleId));
         }
         /// <summary>
@@ -222,12 +223,12 @@ namespace WeeboxSync {
         /// </summary>
         /// <param name="bundle">The bundle to be synchronized</param>
         /// <returns></returns>
-        public bool syncBundle(Bundle bundle){
+        public string syncBundle(Bundle bundle){
             String bundle_lastest_version_id = core.GetLatestVersionIdFromServer(bundle.weeId);
             if (bundle_lastest_version_id == null){
                 //bundle foi eliminado do servidor
                 //delete bundle from db 
-                db.DeleteBundle(bundle.localId);
+                dataBase.DeleteBundle(bundle.localId);
 
                 //delete bundle from FS
                 fileSystem.DeleteRecursiveFolder(bundle.getPath(path_bundles));
@@ -261,7 +262,7 @@ namespace WeeboxSync {
             Bundle bInfo = core.GetLatestVersionFromServer(bundle.weeId);
             if (bInfo == null) return false; // WE SHOULD NOT EVEN BE HERE , DOESNT HAS A NEW VERSION ON SERVER. 
             List<Ficheiro> filesCore = bInfo.filesPath;
-            List<Ficheiro> filesSync = db.GetFicheirosIDS(bundle.localId);
+            List<Ficheiro> filesSync = dataBase.GetFicheirosIDS(bundle.localId);
 
             String transformedBundleId = bInfo.weeId;
             // where whe apply the modifications and save the new bundle wee id.
@@ -320,19 +321,19 @@ namespace WeeboxSync {
                         Tuple<String, List<String>> removedInfo = core.RemoveFicheiro(transformedBundleId,
                                                                                       coreSameNameFile.md5);
                         transformedBundleId = removedInfo.Item1;
-                        db.UpdateWeeId(bundle.localId, transformedBundleId);
+                        dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
                         filesCore.Remove(coreSameNameFile);
                     }
 
                     if (bdSameNameFile != null){
-                        db.DeleteFicheiroInfo(bdSameNameFile.md5, bdSameNameFile.bundleId);
+                        dataBase.DeleteFicheiroInfo(bdSameNameFile.md5, bdSameNameFile.bundleId);
                         filesSync.Remove(bdSameNameFile);
                     }
 
                     //adicionar ao core
                     transformedBundleId = core.PutFicheiro(transformedBundleId, fileSystemFile);
-                    db.UpdateFicheiroInfo(fileSystemFile);
-                    db.UpdateWeeId(bundle.localId, transformedBundleId);
+                    dataBase.UpdateFicheiroInfo(fileSystemFile);
+                    dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
 
                     //apagar md5 da lista actual , nome das outras
                 }
@@ -341,7 +342,7 @@ namespace WeeboxSync {
                 if ((fileSynced != null) && (fileCored == null)){
                     try{
                         fileSystem.DeleteFile(fileSystemFile.path);
-                        db.DeleteFicheiroInfo(fileSynced.md5, fileSynced.bundleId);
+                        dataBase.DeleteFicheiroInfo(fileSynced.md5, fileSynced.bundleId);
                         //caguei de alto
                     }
                     catch (Exception e){
@@ -363,6 +364,8 @@ namespace WeeboxSync {
                     string file_path = bundle.getPath(path_bundles) + "\\" + fileCored.name;
                     //se fileSameNameFS != fileSameNameSynced  duplicate copy porque sao duas versoes diferentes 
 
+
+                    //TODO WARNING, não estamos a actualizar o file system se não existir um ficheiro com o mesmo nome 
                     if (fileSameNameFS){
                         //file already exits. md5 differs, 
                         //try remove it or change is name.
@@ -447,6 +450,7 @@ namespace WeeboxSync {
                         if ((inSyncedFile.name == inCoreFile.name)){
                             //mudou de nome só localmente. 
                             try{
+                                //TODO save changes to database
                                 Tuple<String, List<String>> removedInfo = core.RemoveFicheiro(bundle.weeId,
                                                                                               newNameFile.md5);
                                 if (removedInfo.Item2.Count != 1){
@@ -487,7 +491,7 @@ namespace WeeboxSync {
             List<Ficheiro> filesLastSync; 
             try{
                 filesFs = fileSystem.getFicheirosFromFolder(bundle.getPath(path_bundles), bundle.localId);
-                filesLastSync = db.GetFicheirosIDS(bundle.localId);
+                filesLastSync = dataBase.GetFicheirosIDS(bundle.localId);
             }catch(Exception e ){
                 return false; 
             }
@@ -510,12 +514,12 @@ namespace WeeboxSync {
                 Ficheiro syncFile = filesLastSync.Find((Ficheiro x) => x.md5 == newNameFile.md5);
                 Tuple<String, List<String>> removedInfo = core.RemoveFicheiro(bundle.weeId, newNameFile.md5);
                 bundleTransformedId = removedInfo.Item1; 
-                db.UpdateWeeId(bundle.localId, bundleTransformedId);
+                dataBase.UpdateWeeId(bundle.localId, bundleTransformedId);
                 if (removedInfo.Item2.Count == 0){
-                    db.DeleteFicheiroInfo(newNameFile.md5, bundle.localId); 
+                    dataBase.DeleteFicheiroInfo(newNameFile.md5, bundle.localId); 
                     bundleTransformedId = core.PutFicheiro(bundleTransformedId, newNameFile);
-                    db.UpdateWeeId(bundle.localId, bundleTransformedId);                    
-                    db.SaveFicheiroInfo(newNameFile);
+                    dataBase.UpdateWeeId(bundle.localId, bundleTransformedId);                    
+                    dataBase.SaveFicheiroInfo(newNameFile);
                 }
             }
             // ficheiros só no file system
@@ -524,16 +528,20 @@ namespace WeeboxSync {
                 if (!filesLastSync.Exists((Ficheiro syncFile) => syncFile.md5 == file.md5)){
                     try{
                         Ficheiro fileCored = filesLastSync.Find((Ficheiro x) => x.name == file.name); 
-                        //if fileCored exits it has the same name , we have to removed beacause it's an update of the file
-                        Tuple<String, List<String>> removedInfo =core.RemoveFicheiro(bundleTransformedId, fileCored.md5);
-                        bundleTransformedId = removedInfo.Item1; 
-                        db.UpdateWeeId(bundle.localId, bundleTransformedId);
-                        if (removedInfo.Item2.Count == 0){
-                            db.DeleteFicheiroInfo(fileCored.md5, fileCored.bundleId);
+                        // if fileCored exits it has the same name , we have to removed beacause it's an update of the file
+                        // se calhar devias verificar no core primeiro :S
+                        if (fileCored != null) {
+                            Tuple<String, List<String>> removedInfo = core.RemoveFicheiro (bundleTransformedId,
+                                                                                           fileCored.md5);
+                            bundleTransformedId = removedInfo.Item1;
+                            dataBase.UpdateWeeId (bundle.localId, bundleTransformedId);
+                            if (removedInfo.Item2.Count == 0) {
+                                dataBase.DeleteFicheiroInfo (fileCored.md5, fileCored.bundleId);
+                            }
                         }
-                        bundleTransformedId = core.PutFicheiro(bundleTransformedId, file);
-                        db.UpdateWeeId(bundle.localId, bundleTransformedId);
-                        db.SaveFicheiroInfo(file);
+                        bundleTransformedId = core.PutFicheiro (bundleTransformedId, file);
+                        dataBase.UpdateWeeId (bundle.localId, bundleTransformedId);
+                        dataBase.SaveFicheiroInfo (file);
                     }catch(Exception e){
                         Console.WriteLine(e);
                         continue; 
@@ -548,9 +556,9 @@ namespace WeeboxSync {
                         Tuple<String, List<String>> removedInfo = core.RemoveFicheiro(bundleTransformedId, file.md5);
                         bundleTransformedId = removedInfo.Item1;
                         if (removedInfo.Item2.Count == 0){
-                            db.DeleteFicheiroInfo(file.md5, file.bundleId);
+                            dataBase.DeleteFicheiroInfo(file.md5, file.bundleId);
                         }
-                        db.UpdateWeeId(bundle.localId, bundleTransformedId);
+                        dataBase.UpdateWeeId(bundle.localId, bundleTransformedId);
                     }catch(Exception e){
                         Console.WriteLine(e);
                         continue; 
@@ -577,7 +585,7 @@ namespace WeeboxSync {
                     }
                 }
             }
-            db.SaveBundle(b);
+            dataBase.SaveBundle(b);
             return true; //has created bundle
         }
                 public void GetNewBundles() {
