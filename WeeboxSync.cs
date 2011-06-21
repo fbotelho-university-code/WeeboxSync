@@ -266,22 +266,36 @@ namespace WeeboxSync {
             String transformedBundleId = bInfo.weeId;
             // where whe apply the modifications and save the new bundle wee id.
 
-            //Nomes diferentes
+
+            //Alterar ficheiros que APENAS mudaram de nome 
             transformedBundleId = _alterFileNames(ref bundle, ref filesFS, ref filesCore, ref filesSync,
                                                   transformedBundleId);
 
-            List<Ficheiro> temp = new List<Ficheiro>(filesFS);
+
+            List<Ficheiro> porTratarFS = new List<Ficheiro>(filesFS);
             // updates nos dois lados , fica com os dois TODO
+
+            //Se para um ficheiro no filesystem com um nome x
+            // não existir uma ultima versão sincronizada ou a última versão sincronizada tem um id diferente no core( houve update também no core)
+            // Cria-se uma cópia duplicada. 
             foreach (Ficheiro fileSystemFile in filesFS){
                 Ficheiro fileSynced = filesSync.Find((Ficheiro x) => x.md5 == fileSystemFile.md5);
                 Ficheiro fileCored = filesCore.Find((Ficheiro x) => x.md5 == fileSystemFile.md5);
                 bool duplicate_copy = false;
+
                 if (fileSynced == null && fileCored == null){
+                    // Id do ficheiro só existe no fileSystem! 
+
+                    //Verificar se existem ficheiros com o mesmo nome. 
                     Ficheiro fileSyncedSameName = filesSync.Find((Ficheiro x) => x.name == fileSystemFile.name);
                     Ficheiro fileCoredSameName = filesCore.Find((Ficheiro x) => x.name == fileSystemFile.name);
 
                     if (fileCoredSameName != null){
-                        //ficheiro estava sincronizado 
+                        //Existe um ficheiro no core com o mesmo nome 
+                        //Vamos verificar : 
+                        // Se existir um ficheiro com esse nome sincronizado e tiver um id diferente do que existe no core( ficheiro levou update dos dois lados) 
+                        // Ou então não há informação de sincronização e o ficheiro também foi updated dos dois lados . 
+                        // Em ambos casos considera-se uma cópia duplicada. 
                         if (fileSyncedSameName != null){
                             if (fileSyncedSameName.md5 != fileCoredSameName.md5){
                                 duplicate_copy = true;
@@ -291,125 +305,178 @@ namespace WeeboxSync {
                             duplicate_copy = true;
                         }
                     }
-                    core.PutFicheiro(fileFS);
-                    core.GetFicheiro(coreFIle);
-                    // bd remove antigo (se existir) , adiciona novos 2. 
-                    //remover das listas
-
-                    filesCore.RemoveAll((Ficheiro x) => x.name == fileSystemFile.name);
-                    filesSync.RemoveAll((Ficheiro x) => x.name == fileSystemFile.name);
-
-                    temp.Remove(fileSystemFile);
+                    // if duplicate copy is true , we must treat the exception. 
+                    // modificar o nome do ficheiro, fazer update no core,  sincronizar e retirar caso das listas. 
+                    if (duplicate_copy){
+                        String toAppend = "_DuplicateCopy_" + DateTime.Now;
+                        String newPath = fileSystemFile.path + toAppend;
+                        String oldNAme = fileSystemFile.name;
+                        String oldPath = fileSystemFile.path; 
+                        fileSystemFile.name = fileSystemFile.name + toAppend;
+                        try{
+                            fileSystem.RenameFile(oldPath, newPath);
+                            fileSystemFile.path = newPath; 
+                            transformedBundleId = core.PutFicheiro(transformedBundleId, fileSystemFile);
+                            dataBase.DeleteFicheiroInfo(fileSyncedSameName.md5, bundle.localId);
+                            dataBase.SaveFicheiroInfo(fileSystemFile);
+                            dataBase.UpdateFicheiroInfo(fileSystemFile);
+                            dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
+                            String newFilePath = bundle.getPath(root_folder) + "\\" + fileCoredSameName.name; 
+                            core.GetFicheiro(transformedBundleId, fileCoredSameName.md5,
+                                             newFilePath); 
+                            Ficheiro toSaveInBD = new Ficheiro(newFilePath, bundle.localId, fileCoredSameName.md5);
+                            dataBase.SaveFicheiroInfo(toSaveInBD);
+                        }catch(Exception e){
+                            //Adia tratamento dos ficheiros envolvidos para depois. 
+                            //Removendo ficheiros envolvidos das listas a tratar neste método. 
+                            porTratarFS.RemoveAll((Ficheiro x) => x.name == oldNAme);
+                            filesCore.Remove(fileCoredSameName); 
+                            if (fileSyncedSameName != null){
+                                filesSync.Remove(fileSyncedSameName); 
+                            }
+                            //Se tivermos conseguido mudar o nome do ficheiro acima , então tenta renomear para o nome original.
+                            try{
+                                if (File.Exists(newPath)){
+                                    fileSystem.RenameFile(newPath, oldPath);                                    
+                                }
+                            }catch(Exception e1){
+                                // Ignorar exception , best effort rename file, não funciona , continua 
+                                //Teremos um _DuplicateCopy_File que será considerado na próxima iteração. 
+                                ; 
+                            }
+                            continue; 
+                        } 
+                        filesCore.RemoveAll((Ficheiro x) => x.name == fileSystemFile.name);
+                        filesSync.RemoveAll((Ficheiro x) => x.name == fileSystemFile.name);
+                        porTratarFS.Remove(fileSystemFile);
+                    }
                 }
             }
+            filesFS = porTratarFS;
 
-            filesFS = temp;
-
-
+            porTratarFS = new List<Ficheiro>(filesFS);
             foreach (Ficheiro fileSystemFile in filesFS){
                 Ficheiro fileSynced = filesSync.Find((Ficheiro x) => x.md5 == fileSystemFile.md5);
                 Ficheiro fileCored = filesCore.Find((Ficheiro x) => x.md5 == fileSystemFile.md5);
 
                 // Ficheiros só presentes no file system 
                 if (fileSynced == null && fileCored == null){
-                    //novo ficheiro
+                    //novo ficheiro no fs. 
                     Ficheiro coreSameNameFile = filesCore.Find((Ficheiro x) => x.name == fileSystemFile.name);
                     Ficheiro bdSameNameFile = filesSync.Find((Ficheiro x) => x.name == fileSystemFile.name);
 
-                    if (coreSameNameFile != null){
-                        Tuple<String, List<String>> removedInfo = core.RemoveFicheiro(transformedBundleId,
-                                                                                      coreSameNameFile.md5);
-                        transformedBundleId = removedInfo.Item1;
+                    try{
+                        // Se existir um ficheiro no core com o mesmo nome , este deve ser removido, pois é uma versão antiga. 
+                        if (coreSameNameFile != null){
+                            Tuple<String, List<String>> removedInfo = core.RemoveFicheiro(transformedBundleId,
+                                                                                          coreSameNameFile.md5);
+                            transformedBundleId = removedInfo.Item1;
+                            dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
+                        }
+                        if (bdSameNameFile != null){
+                            dataBase.DeleteFicheiroInfo(bdSameNameFile.md5, bdSameNameFile.bundleId);
+                        }
+
+                        //adicionar ficheiro novo ao core
+                        transformedBundleId = core.PutFicheiro(transformedBundleId, fileSystemFile);
+                        dataBase.UpdateFicheiroInfo(fileSystemFile);
                         dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
+                    }catch(Exception e){
+                        continue;
+                    }
+                    finally{
+                        //apagar md5 da lista actual , nome das outras
+                        porTratarFS.Remove(fileSystemFile);
                         filesCore.Remove(coreSameNameFile);
+                        filesSync.Remove(bdSameNameFile); 
                     }
-
-                    if (bdSameNameFile != null){
-                        dataBase.DeleteFicheiroInfo(bdSameNameFile.md5, bdSameNameFile.bundleId);
-                        filesSync.Remove(bdSameNameFile);
-                    }
-
-                    //adicionar ao core
-                    transformedBundleId = core.PutFicheiro(transformedBundleId, fileSystemFile);
-                    dataBase.UpdateFicheiroInfo(fileSystemFile);
-                    dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
-
-                    //apagar md5 da lista actual , nome das outras
                 }
 
                 // id do ficheiro só nao existe no core
+                //Preciso de o apagar do file system , e da base de dados.
                 if ((fileSynced != null) && (fileCored == null)){
                     try{
                         fileSystem.DeleteFile(fileSystemFile.path);
                         dataBase.DeleteFicheiroInfo(fileSynced.md5, fileSynced.bundleId);
-                        //caguei de alto
                     }
                     catch (Exception e){
-                        //add bundle to updateQueue
                         continue;
                     }
-                    //remover file da lista md5 actual, nomes dos outros. 
+                    finally{
+                        porTratarFS.Remove(fileSystemFile);
+                        filesSync.Remove(fileSynced);
+                    }
                 }
             }
 
+            filesFS = porTratarFS; 
+
+            List<Ficheiro> porTratarCored = new List<Ficheiro>(filesCore);
+
             foreach (Ficheiro fileCored in filesCore){
+
                 Ficheiro fileFS = filesFS.Find((Ficheiro x) => x.md5 == fileCored.md5);
                 Ficheiro fileSync = filesSync.Find((Ficheiro x) => x.md5 == fileCored.md5);
 
                 if ((fileFS == null) && (fileSync == null)){
                     //File só  existe no bundle do core
+
                     Ficheiro fileSameNameFS = filesFS.Find((Ficheiro x) => x.name == fileCored.name);
                     Ficheiro fileSameNameSynced = filesSync.Find((Ficheiro x) => x.name == fileCored.name);
                     string file_path = bundle.getPath(path_bundles) + "\\" + fileCored.name;
-                    //se fileSameNameFS != fileSameNameSynced  duplicate copy porque sao duas versoes diferentes 
-
 
                     //TODO WARNING, não estamos a actualizar o file system se não existir um ficheiro com o mesmo nome 
-                    if (fileSameNameFS){
-                        //file already exits. md5 differs, 
-                        //try remove it or change is name.
-                        Boolean deleted;
-                        try{
-                            fileSystem.DeleteFile(file_path);
-                            deleted = true;
-                        }
-                        catch (IOException e){
-                            deleted = false;
-                        }
 
-                        if (!deleted){
-                            continue;
+                    try{
+                        if (fileSameNameFS != null){
+                            // Fizeste update no core e queres sacar para o file system.
+                            //file already exits. md5 differs, 
+                            //try remove it or change is name.
+                            fileSystem.DeleteFile(file_path);
+                            dataBase.DeleteFicheiroInfo(fileSameNameFS.md5, bundle.localId);
+                            core.GetFicheiro(transformedBundleId, fileCored.md5, file_path);
                         }
                         else{
-                            try{
-                                core.GetFicheiro(transformedBundleId, fileCored.md5, file_path);
-                                //update bd 
-                            }
-                            catch (Exception e){
-                                continue;
-                            }
+                            core.GetFicheiro(transformedBundleId, fileCored.md5, file_path);
                         }
                     }
-
+                    catch{
+                        continue;
+                    }
+                    finally{
+                        porTratarFS.Remove(fileSameNameFS);
+                        filesSync.Remove(fileSameNameSynced);
+                        porTratarCored.Remove(fileCored);
+                    }
                 }
 
-                if ((fileSync != null) && (fileFS == null)){
+                else if ((fileSync != null) && (fileFS == null)){
+                    //ficheiro existe na base de dados e existe no core ( Só nao existe no filesystem , tendo sido removido (provavelmente))
                     try{
                         core.RemoveFicheiro(transformedBundleId, fileCored.md5);
-                        //update bd. 
+                        dataBase.DeleteFicheiroInfo(fileSync.md5, bundle.localId);
                     }
                     catch (Exception e){
                         continue;
                     }
-                }
-                //remove md5 from core list and remove same name from every list
-
-                foreach (File file_garbage in filesSync){
-                    //db.remove file 
+                    finally{
+                        porTratarCored.Remove(fileCored);
+                        filesSync.Remove(fileSync);
+                    }
                 }
             }
+            filesCore = porTratarCored; 
+
+            //remove md5 from core list and remove same name from every list
+
+            foreach (Ficheiro fileSynced in filesSync){
+                dataBase.DeleteFicheiroInfo(fileSynced.md5, bundle.localId);
+            }
+            dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
+            //TODO erase all updateweeIds above. 
             return true; 
         }
+
 
         private
             String _alterFileNames
@@ -429,24 +496,25 @@ namespace WeeboxSync {
                     Ficheiro inFileSys = newNameFile;
                     Ficheiro inSyncedFile = filesSync.Find((Ficheiro x) => x.md5 == inFileSys.md5);
                     Ficheiro inCoreFile = filesCore.Find((Ficheiro x) => x.md5 == inFileSys.md5);
-                    if (inSyncedFile == null ||
+                    if ((inSyncedFile == null) ||
                         ((inSyncedFile.name != inCoreFile.name) && inSyncedFile.name != inFileSys.name)){
                         // files wasn't synced , we don't have a way to find out who was the last one to be renamed.  OR  file changed in both places 
                         // policy : stay with server name , faster solution 
+
                         Ficheiro newFile = new Ficheiro(bundle.getPath(path_bundles) + "\\" + inCoreFile.name,
-                                                        bundle.localId, inFileSys.md5);
+                                                        bundle.localId, inCoreFile.md5);
                         try{
                             fileSystem.RenameFile(inFileSys.path, newFile.path);
+                            dataBase.DeleteFicheiroInfo(inFileSys.md5, bundle.localId);
+                            dataBase.SaveFicheiroInfo(newFile);
                         }
                         catch (Exception e){
                             // We could not rename the file 
-                            //TODO - Try change in server , might be cool 
                             //ignoring file 
                             continue;
                         }
                     }
-                    else{
-                        if ((inSyncedFile.name == inCoreFile.name)){
+                    else if (((inSyncedFile != null) && (inSyncedFile.name == inCoreFile.name))){
                             //mudou de nome só localmente. 
                             try{
                                 //TODO save changes to database
@@ -456,35 +524,37 @@ namespace WeeboxSync {
                                     throw new SystemException("Could not update, being catched right below");
                                 }
                                 transformedBundleID = removedInfo.Item1;
+                                dataBase.DeleteFicheiroInfo(inSyncedFile.md5, bundle.localId);
                                 transformedBundleID = core.PutFicheiro(transformedBundleID, newNameFile);
+                                dataBase.SaveFicheiroInfo(newNameFile);
                                 // might throw another exception being catch below
                             }
                             catch (Exception e){
                                 //we could not rename the file continue with sync; 
                                 continue; //outer loop , syncing other files. 
                             }
-
                         }
                         else{
-                            //file change remotly rename local file. 
+                            //file changed remotly ; rename local file. 
                             Ficheiro newFile = new Ficheiro(bundle.getPath(path_bundles) + "\\" + inCoreFile.name,
                                                             bundle.localId, inFileSys.md5);
                             try{
                                 fileSystem.RenameFile(inFileSys.path, newFile.path);
+                                dataBase.UpdateFicheiroInfo(newFile);
                             }
                             catch (Exception e){
                                 // We could not rename the file 
-                                //TODO - Try change in server , might be cool 
                                 //ignoring file 
                                 continue;
                             }
                         }
                     }
 
-                }
                 return transformedBundleID;
             }
 
+
+        
         private bool _sync_with_no_new_version(Bundle bundle){
             List<Ficheiro> filesFs;
             List<Ficheiro> filesLastSync; 
