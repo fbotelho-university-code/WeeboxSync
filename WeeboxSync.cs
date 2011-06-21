@@ -59,8 +59,7 @@ namespace WeeboxSync {
             if (Monitor.TryEnter(SyncLock, 1))
             {//lock acquired
                 try {
-                    Thread t = new Thread (syncBundles) {IsBackground = true};
-                    t.Start ();
+                    syncBundles ();
                 } finally {
                     Monitor.Exit (SyncLock);
                 }

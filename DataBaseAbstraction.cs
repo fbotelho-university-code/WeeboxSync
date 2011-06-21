@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Collections;
 
 namespace WeeboxSync {
     public class DataBaseAbstraction {
@@ -257,7 +256,6 @@ namespace WeeboxSync {
         public List<Ficheiro> GetFicheirosIDS(String bundleId) {
             if (string.IsNullOrEmpty(bundleId))
                 return null;
-            Ficheiro file = new Ficheiro();
             List<Ficheiro> lista = new List<Ficheiro>();
             
             SqlConnection con = new SqlConnection(connectionString);
@@ -265,7 +263,7 @@ namespace WeeboxSync {
             SqlCommand query = new SqlCommand(string.Format("select * from ficheiro where bundleID = '{0}'", bundleId), con);
             SqlDataReader reader = query.ExecuteReader();
             while (reader.Read()) {
-                file = new Ficheiro(reader.GetString(2), reader.GetString(1), reader.GetString(0));
+                Ficheiro file = new Ficheiro(reader.GetString(2), reader.GetString(1), reader.GetString(0));
                 lista.Add(file);
             }
             reader.Close();
