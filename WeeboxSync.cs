@@ -12,7 +12,7 @@ namespace WeeboxSync {
         public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
         public int DefaultSyncInterval { get; set; } //in minutes
         
-        private  long bundle_serial_generator = 0;
+        private long bundle_serial_generator = 0;
         private List<Scheme> scheme; 
         private  String root_folder = null;
         private CoreAbstraction core;
@@ -22,8 +22,10 @@ namespace WeeboxSync {
         private String path_bundles= null;
 
         private readonly object SyncLock = new object ();
-        private readonly object BagLock = new object (); //controls access to the collection of to update bundle
+        private readonly object BagLock = new object (); //controls access to the collection of to-update bundles
         private List<String> bundlesToUpdate;
+
+        private Watcher watcher;
 
         public WeeboxSync(){
             core = CoreAbstraction.getCore();
@@ -31,6 +33,11 @@ namespace WeeboxSync {
             dataBase = new DataBaseAbstraction(); 
             bundlesToUpdate = new List<string> ();
         }
+
+        public void SetWatcher(ref Watcher watch) {
+            watcher = watch;
+        }
+
         /// <summary>
         /// Adds a bundle to be updated when possible
         /// </summary>
@@ -40,7 +47,6 @@ namespace WeeboxSync {
             Monitor.Enter(BagLock);
             try
             {
-                //TODO - tocha - try to sync if queue empty
                 //só adicionamos o bundle se ele não estiver à espera de ser sincronizado
                 if(!bundlesToUpdate.Contains (bundleID))
                     bundlesToUpdate.Add(bundleID);
@@ -48,22 +54,27 @@ namespace WeeboxSync {
             finally {
                 Monitor.Exit (BagLock);
             }
+
+            // tenta sincronizar os bundles
+            SyncQueuedBundles ();
         }
         /// <summary>
         /// Attempts to synchronize this weebox instance
         /// </summary>
         /// <returns>true if the instance was synchronized, false if the synchronize process is already ongoing</returns>
-        public bool SynchronizeAll()
-        {
-            //try to acquire lock and exit if 1 millisecond passes without it happening
-            if (Monitor.TryEnter(SyncLock, 1))
+        public bool SynchronizeAll() {
+            //try to acquire lock and exit if not acquired
+            if (Monitor.TryEnter(SyncLock))
             {//lock acquired
                 try {
-                    Thread t = new Thread (syncBundles) {IsBackground = true};
-                    t.Start ();
+                    watcher.Disable ();
+                    syncBundles ();
+                    watcher.Enable ();
                 } finally {
                     Monitor.Exit (SyncLock);
                 }
+                //tenta sincronizar bundles atrasados
+                SyncQueuedBundles ();
             }
             else {
                 //acquire failed
@@ -71,17 +82,28 @@ namespace WeeboxSync {
             }
             return true;
         }
-        private void SyncQueuedBundles()
+        private bool SyncQueuedBundles()
         {
-            Monitor.Enter(BagLock);
-            try
+            if (Monitor.TryEnter(SyncLock))
             {
-                foreach (var bundleID in bundlesToUpdate) {
-                    syncBundle (bundleID);
+                try {
+                    Monitor.Enter (BagLock);
+                    try {
+                        watcher.Disable ();
+                        foreach (var bundleID in bundlesToUpdate) {
+                            syncBundle (bundleID);
+                        }
+                        watcher.Enable ();
+                    } finally {
+                        Monitor.Exit(BagLock);
+                    }
                 }
-            }
-            finally {
-                Monitor.Exit (BagLock);
+                finally {
+                    Monitor.Exit (SyncLock);
+                }
+                return true;
+            } else {
+                return false;
             }
         }
         public String getRootFolder(){

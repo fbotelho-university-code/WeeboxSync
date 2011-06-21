@@ -35,6 +35,7 @@ namespace WeeboxSync {
         private void OnChanged(object source, FileSystemEventArgs e) {
             string rootPath = weebox.getRootFolder();
             if (e.FullPath.Contains(rootPath)) {
+                // TODO - check if id is correct
                 string bundleID = e.FullPath.Substring (rootPath.Length); 
                 weebox.AddBundleToUpdateQueue(bundleID);
             }
