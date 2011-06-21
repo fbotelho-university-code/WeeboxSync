@@ -56,6 +56,10 @@ namespace WeeboxSync
             TrayApp ta = new TrayApp(ref Weebox);
             Application.Run(ta);
 
+            //Create watcher
+            Thread t = new Thread (StartWatcher) {IsBackground = true};
+            t.Start();
+      
             #endregion
 
             #region tests
@@ -153,6 +157,12 @@ namespace WeeboxSync
             */
 
             #endregion
+        }
+
+        private static void StartWatcher()
+        {
+            Watcher w = new Watcher(ref Weebox, Weebox.getRootFolder () + @"\Bundles");
+            Weebox.SetWatcher (ref w);
         }
 
         private static void GetRegistryKeys() {
