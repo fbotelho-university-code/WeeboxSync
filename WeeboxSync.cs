@@ -426,8 +426,6 @@ namespace WeeboxSync {
                     Ficheiro fileSameNameSynced = filesSync.Find((Ficheiro x) => x.name == fileCored.name);
                     string file_path = bundle.getPath(path_bundles) + "\\" + fileCored.name;
 
-                    //TODO WARNING, não estamos a actualizar o file system se não existir um ficheiro com o mesmo nome 
-
                     try{
                         if (fileSameNameFS != null){
                             // Fizeste update no core e queres sacar para o file system.
