@@ -88,12 +88,36 @@ namespace WeeboxSync {
         /// <param name="path">The folder from wich we build the results </param>
         /// <returns></returns>
 
+        public  string getName(string path ){
+            if (!path.Contains("\\")){
+                return path;
+            }
+            String s = "" + path;
+            int lastInfexOF   = s.LastIndexOf("\\");
+            return s.Remove(0, lastInfexOF+1 ); 
+
+        }
+        public  String getDuplicateName(string path){
+            String name=path; 
+            int lastInfexOF   = name.LastIndexOf("\\");
+            name = name.Remove(0, lastInfexOF+1 );
+            String realPath = path.Remove(lastInfexOF);
+            String ext = "";
+            int i = 0;
+            while (System.IO.File.Exists(realPath + i + name)){
+                i++; 
+            }
+            return realPath + i + name; 
+        }
+
         public List<Ficheiro> getFicheirosFromFolder(String path, string bundleId){
             List<Ficheiro> files = new List<Ficheiro>();
             foreach (String fpath in Directory.EnumerateFiles(path)) {
                 try{
-                    Ficheiro file = new Ficheiro(fpath, bundleId, true);
-                    files.Add(file);
+                    if ((System.IO.File.GetAttributes(fpath) & System.IO.FileAttributes.Hidden) != System.IO.FileAttributes.Hidden){
+                        Ficheiro file = new Ficheiro(fpath, bundleId, true);
+                        files.Add(file);
+                    }
                 }
                 catch (Exception e){
                     try{

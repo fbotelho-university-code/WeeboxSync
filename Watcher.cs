@@ -29,7 +29,7 @@ namespace WeeboxSync {
             watcher.EnableRaisingEvents = true;
         }
         public void Disable() {
-            watcher.EnableRaisingEvents = true;
+            watcher.EnableRaisingEvents = false;
         }
         // Define the event handlers.
         private void OnChanged(object source, FileSystemEventArgs e) {
