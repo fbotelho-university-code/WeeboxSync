@@ -16,10 +16,14 @@ namespace WeeboxSync
             weebox = instance;
             trayMenu = new ContextMenu();
             var menu = trayMenu.MenuItems;
-            MenuItem m = new MenuItem("Force Sync", ForceSync);
+            MenuItem m = new MenuItem("Forçar sincronização", ForceSync);
             menu.Add(0, m);
-            m = new MenuItem("Exit", OnExit);
+            m = new MenuItem("Alterar credenciais", SetUserCredentials);
             menu.Add (1, m);
+            m = new MenuItem("Alterar dados de ligação", SetConnectionInfo);
+            menu.Add(2, m);
+            m = new MenuItem("Sair", OnExit);
+            menu.Add (3, m);
             trayIcon = new NotifyIcon {
                                           Text = "Weebox-Sync",
                                           Icon =
@@ -28,11 +32,34 @@ namespace WeeboxSync
                                           Visible = true
             };
         }
-        private void setUserCredentials() {
-            
+        private void SetUserCredentials(object sender, EventArgs eventArgs)
+        {
+            WeeboxSync ws = new WeeboxSync ();
+            LoginWindow lw = new LoginWindow(ref ws);
+            var dialogRes = lw.ShowDialog();
+            if (dialogRes == DialogResult.OK) { //nao foi cancelado
+                var res = weebox.setCredentials (ws.connection_info.user.user, ws.connection_info.user.pass);
+                if (!res) {
+                    MessageBox.Show ("Sincronização em curso, por favor aguarde alguns minutos e tente novamente.",
+                                     "Erro",
+                                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
-        private void setConnectionInfo() {
-            
+        private void SetConnectionInfo(object sender, EventArgs eventArgs)
+        {
+            ConnectionInfo ci = new ConnectionInfo();
+            ConnectionInfoEditor cie = new ConnectionInfoEditor(ref ci);
+            var dialogRes = cie.ShowDialog();
+            if (dialogRes == DialogResult.OK) { //not canceled
+                var res = weebox.setConnectionInfo (ci.address, ci.proxy, ci.useProxy);
+                if (!res)
+                {
+                    MessageBox.Show("Sincronização em curso, por favor aguarde alguns minutos e tente novamente.",
+                                     "Erro",
+                                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         }
         private void ForceSync(object sender, EventArgs eventArgs)
         {
@@ -70,6 +97,20 @@ namespace WeeboxSync
             }
 
             base.Dispose(isDisposing);
+        }
+
+        private void InitializeComponent()
+        {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(TrayApp));
+            this.SuspendLayout();
+            // 
+            // TrayApp
+            // 
+            this.ClientSize = new System.Drawing.Size(284, 262);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Name = "TrayApp";
+            this.ResumeLayout(false);
+
         }
     }
 }

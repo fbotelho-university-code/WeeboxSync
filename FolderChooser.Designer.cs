@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FolderChooser));
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
@@ -40,8 +41,8 @@
             this.label6 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.label4 = new System.Windows.Forms.Label();
+            this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.SuspendLayout();
@@ -161,6 +162,16 @@
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Pasta Raiz";
             // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(8, 41);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(469, 13);
+            this.label4.TabIndex = 6;
+            this.label4.Text = "Nessa pasta será criada a pasta \"My Weebox\", onde serão colocados os seus dados d" +
+                "e seguida.\r\n";
+            // 
             // groupBox2
             // 
             this.groupBox2.Controls.Add(this.label7);
@@ -174,16 +185,6 @@
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Intervalo";
             // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(8, 41);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(469, 13);
-            this.label4.TabIndex = 6;
-            this.label4.Text = "Nessa pasta será criada a pasta \"My Weebox\", onde serão colocados os seus dados d" +
-                "e seguida.\r\n";
-            // 
             // FolderChooser
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -195,8 +196,11 @@
             this.Controls.Add(this.backButton);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.MaximizeBox = false;
             this.Name = "FolderChooser";
-            this.Text = "Configuração do Programa";
+            this.Text = "Weebox-Sync :: Configuração";
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.groupBox2.ResumeLayout(false);

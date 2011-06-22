@@ -22,7 +22,7 @@ namespace WeeboxSync {
             watcher.Created += OnChanged;
             watcher.Deleted += OnChanged;
             watcher.Renamed += OnChanged;
-
+            
             watcher.IncludeSubdirectories = true;
         }
 
@@ -34,11 +34,11 @@ namespace WeeboxSync {
         }
         // Define the event handlers.
         private void OnChanged(object source, FileSystemEventArgs e) {
+            
             if (e.FullPath.Contains(path)) {
-                // TODO - check if id is correct
                 string bundleID = e.FullPath.Substring (path.Length+1);
                 bundleID = bundleID.Substring(0, bundleID.IndexOf ("\\"));
-                MessageBox.Show ("FullPath:\n" + e.FullPath + "\nBundleID:\n" + bundleID + "\nPath:\n" + path);
+                //MessageBox.Show ("FullPath:\n" + e.FullPath + "\nBundleID:\n" + bundleID + "\nPath:\n" + path);
                 weebox.AddBundleToUpdateQueue(bundleID);
             }
         }

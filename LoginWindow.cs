@@ -16,13 +16,12 @@ namespace WeeboxSync
         {
             InitializeComponent();
             this.weebox = weeboxInstance;
-            //server = @"http://photo.weebox.keep.pt/";
         }
 
         private void iniciarButton_Click(object sender, EventArgs e)
         {
            if (weebox.connection_info == null)
-                weebox.connection_info = new ConnectionInfo ();
+               weebox.connection_info = new ConnectionInfo(new Utilizador("", ""), @"http://photo.weebox.keep.pt/");
             weebox.connection_info.user.user = usernameTextBox.Text;
             weebox.connection_info.user.pass = passwordTextBox.Text;
          

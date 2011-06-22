@@ -287,19 +287,20 @@ namespace WeeboxSync
                         SaveRegistryKeys ();
                         DataBaseAbstraction dba = new DataBaseAbstraction ();
                         dba.SaveConnectionInfo (Weebox.connection_info);
-                        try
-                        {
-                            Weebox.setup();
-                        }
-                        catch (Exception e) {
+                        DownloadWait dw = new DownloadWait (ref Weebox);
+                        var res = dw.ShowDialog ();
+                        if(res == DialogResult.Cancel) {
                             //eliminar chaves de registo
-                            DeleteRegistryKeys ();
+                            DeleteRegistryKeys();
                             //eliminar pasta root
-                            fsa.DeleteRecursiveFolder (Weebox.getRootFolder ());
-                            MessageBox.Show (
+                            fsa.DeleteRecursiveFolder(Weebox.getRootFolder());
+                            MessageBox.Show(
                                 "Setup falhou. Por favor inicie novamente a aplicação, verifique os dados inseridos e tente novamente",
                                 "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             return false;
+                        }
+                        else if (res == DialogResult.OK) {
+                            MessageBox.Show ("O setup foi concluído com sucesso.\nBem-vindo ao mundo Weebox.", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         cont = false;
                         break;
@@ -326,7 +327,7 @@ namespace WeeboxSync
                         break;
                 }
             } while (cont);
-            MessageBox.Show ("Setup done!, Now we rock!");
+            //MessageBox.Show ("Setup done!, Now we rock!");
             return true;
         }
     }

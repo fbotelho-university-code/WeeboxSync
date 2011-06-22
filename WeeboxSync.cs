@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Collections.Concurrent;
 
 namespace WeeboxSync {
     public class WeeboxSync {
@@ -42,7 +41,40 @@ namespace WeeboxSync {
             watcher = watch;
             //watcher.Disable ();
         }
-
+        public bool setCredentials(string user, string pass)
+        {
+            if (Monitor.TryEnter(SyncLock))
+            {
+                try
+                {
+                    connection_info.user = new Utilizador(user, pass);
+                    dataBase.SaveConnectionInfo (connection_info);
+                }
+                finally {
+                    Monitor.Exit (SyncLock);
+                }
+                return true;
+            }
+            return false;
+        }
+        public bool setConnectionInfo(Uri server, Uri proxy, bool useProxy) {
+            if (Monitor.TryEnter(SyncLock))
+            {
+                try
+                {
+                    connection_info.address = server;
+                    connection_info.proxy = proxy;
+                    connection_info.useProxy = useProxy;
+                    dataBase.SaveConnectionInfo(connection_info);
+                }
+                finally
+                {
+                    Monitor.Exit(SyncLock);
+                }
+                return true;
+            }
+            return false;
+        }
         /// <summary>
         /// Adds a bundle to be updated when possible
         /// </summary>
