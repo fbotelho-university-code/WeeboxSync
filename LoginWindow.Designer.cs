@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(LoginWindow));
             this.label1 = new System.Windows.Forms.Label();
             this.iniciarButton = new System.Windows.Forms.Button();
             this.label3 = new System.Windows.Forms.Label();
@@ -100,7 +101,6 @@
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click_1);
             // 
-//            this.pictureBox1.Image = global::WeeboxSync.Properties.Resources.weebox_logo_trans;
             // LoginWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -113,6 +113,9 @@
             this.Controls.Add(this.label3);
             this.Controls.Add(this.iniciarButton);
             this.Controls.Add(this.label1);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.MaximizeBox = false;
             this.Name = "LoginWindow";
             this.Text = "Weebox-Sync :: Login";
             this.ResumeLayout(false);

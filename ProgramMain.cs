@@ -13,16 +13,15 @@ namespace WeeboxSync
         private static int _defaultInterval; //in minutes
         private static string _username;
         private static string _rootFolder;
-
+        
         [STAThread]
         public static void Main() {
             #region main
-
             _setupOk = true;
-            
             if (IsFirstRun())
             {
                 _setupOk = DoSetup();
+                _defaultInterval = Weebox.DefaultSyncInterval;
             }
             else {
                 //iniciar nova instância
@@ -46,19 +45,20 @@ namespace WeeboxSync
                 return;
             }
 
+            //Create watcher
+            Thread t = new Thread(StartWatcher) { IsBackground = true };
+            t.Start();
+
             //create sync timer thread
-            Thread timer = new Thread (CheckSync);
+            Thread timer = new Thread (CheckSync) {IsBackground = true};
             //if the parent thread terminates, all the background threads terminate too
-            timer.IsBackground = true;
             timer.Start();
 
             //Create the tray icon
             TrayApp ta = new TrayApp(ref Weebox);
             Application.Run(ta);
 
-            //Create watcher
-            Thread t = new Thread (StartWatcher) {IsBackground = true};
-            t.Start();
+            
       
             #endregion
 
@@ -183,7 +183,10 @@ namespace WeeboxSync
         private static void CheckSync() {
             Thread.Sleep (TimeSpan.FromMinutes (_defaultInterval));
             while(true) {
-                Weebox.SynchronizeAll();
+                var res = MessageBox.Show ("Starting automated sync now.\nProceed?", "Automated sync", MessageBoxButtons.OKCancel,
+                                 MessageBoxIcon.Question);
+                if(res == DialogResult.OK) 
+                    Weebox.SynchronizeAll();
                 Thread.Sleep(TimeSpan.FromMinutes(_defaultInterval));
             }
         }
@@ -205,8 +208,7 @@ namespace WeeboxSync
                 key.SetValue ("username", Weebox.connection_info.user.user);
                 key.SetValue ("rootFolder", Weebox.getRootFolder ());
                 key.SetValue ("syncInterval", Weebox.DefaultSyncInterval, RegistryValueKind.DWord);
-            } catch (Exception e)
-            {
+            } catch (Exception e) {
                 return false;
             } finally {
                 if (key != null)
@@ -222,6 +224,7 @@ namespace WeeboxSync
                 key.DeleteValue("rootFolder");
                 key.DeleteValue("syncInterval");
                 key.Close ();
+                Registry.CurrentUser.DeleteSubKeyTree(@"Software\KeepSolutions");
             }
         }
         private static bool DoSetup()
@@ -230,8 +233,9 @@ namespace WeeboxSync
             Weebox = new WeeboxSync();
             int state = 1;
             bool cont = true;
-
-            //TODO - tocha - show welcome screen
+            FicheiroSystemAbstraction fsa = new FicheiroSystemAbstraction();
+            WelcomeScreen ws = new WelcomeScreen ();
+            ws.ShowDialog ();
             do {
                 /**
                 * if dialog results are DialogResult.Retry,
@@ -283,16 +287,20 @@ namespace WeeboxSync
                         SaveRegistryKeys ();
                         DataBaseAbstraction dba = new DataBaseAbstraction ();
                         dba.SaveConnectionInfo (Weebox.connection_info);
-                        try
-                        {
-                            Weebox.setup();
-                        }
-                        catch (Exception e) {
+                        DownloadWait dw = new DownloadWait (ref Weebox);
+                        var res = dw.ShowDialog ();
+                        if(res == DialogResult.Cancel) {
                             //eliminar chaves de registo
-
+                            DeleteRegistryKeys();
                             //eliminar pasta root
-                            FicheiroSystemAbstraction fsa = new FicheiroSystemAbstraction ();
-                            fsa.DeleteRecursiveFolder (Weebox.getRootFolder ());
+                            fsa.DeleteRecursiveFolder(Weebox.getRootFolder());
+                            MessageBox.Show(
+                                "Setup falhou. Por favor inicie novamente a aplicação, verifique os dados inseridos e tente novamente",
+                                "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
+                        }
+                        else if (res == DialogResult.OK) {
+                            MessageBox.Show ("O setup foi concluído com sucesso.\nBem-vindo ao mundo Weebox.", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         cont = false;
                         break;
@@ -311,11 +319,15 @@ namespace WeeboxSync
                             "Erro",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error);
+                        //eliminar chaves de registo
+                        DeleteRegistryKeys();
+                        //eliminar pasta root
+                        fsa.DeleteRecursiveFolder(Weebox.getRootFolder());
                         Application.Exit();
                         break;
                 }
             } while (cont);
-            MessageBox.Show ("Setup done!, Now we rock!");
+            //MessageBox.Show ("Setup done!, Now we rock!");
             return true;
         }
     }

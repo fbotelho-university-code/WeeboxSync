@@ -29,18 +29,23 @@ namespace WeeboxSync
             rootFolderTextBox.Text = fbd.SelectedPath;
         }
 
-        private void continueButton_Click(object sender, EventArgs e) {
-            var res = weebox.setRootFolder (rootFolderTextBox.Text);
-            int min;
-            int.TryParse (minuteTextBox.Text, out min);
+        private void continueButton_Click(object sender, EventArgs e)
+        {
+            var res = weebox.setRootFolder(rootFolderTextBox.Text);
+            if (!res)
+            {
+                MessageBox.Show("Impossivel guardar pasta raiz, tente novamente", "Erro",
+                                 MessageBoxButtons.OK,
+                                 MessageBoxIcon.Error);
 
-
-
-
-            //TODO - tocha - create method in WeeboxSync, use tryParse
-            //weebox.setDefaultInterval (min);
-            this.DialogResult = DialogResult.OK;
-            this.Close ();
+            }
+            else {
+                int min;
+                int.TryParse (minuteTextBox.Text, out min);
+                weebox.DefaultSyncInterval = min;
+                this.DialogResult = DialogResult.OK;
+                this.Close ();
+            }
         }
 
         private void backButton_Click(object sender, EventArgs e) {
