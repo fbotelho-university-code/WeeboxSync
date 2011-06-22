@@ -1,6 +1,7 @@
 using System;
 namespace WeeboxSync {
     using System.IO;
+    using System.Windows.Forms;
 
     public class Watcher {
         private string path;
@@ -29,14 +30,15 @@ namespace WeeboxSync {
             watcher.EnableRaisingEvents = true;
         }
         public void Disable() {
-            watcher.EnableRaisingEvents = true;
+            watcher.EnableRaisingEvents = false;
         }
         // Define the event handlers.
         private void OnChanged(object source, FileSystemEventArgs e) {
-            string rootPath = weebox.getRootFolder();
-            if (e.FullPath.Contains(rootPath)) {
+            if (e.FullPath.Contains(path)) {
                 // TODO - check if id is correct
-                string bundleID = e.FullPath.Substring (rootPath.Length); 
+                string bundleID = e.FullPath.Substring (path.Length+1);
+                bundleID = bundleID.Substring(0, bundleID.IndexOf ("\\"));
+                MessageBox.Show ("FullPath:\n" + e.FullPath + "\nBundleID:\n" + bundleID + "\nPath:\n" + path);
                 weebox.AddBundleToUpdateQueue(bundleID);
             }
         }

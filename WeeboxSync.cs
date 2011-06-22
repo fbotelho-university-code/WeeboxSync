@@ -6,9 +6,13 @@ using System.Threading;
 using System.Collections.Concurrent;
 
 namespace WeeboxSync {
-    public class WeeboxSync
-    {
-        public ConnectionInfo connection_info { get; set;  }
+    public class WeeboxSync {
+        private ConnectionInfo _connection_info;
+        public ConnectionInfo connection_info {
+            get { return _connection_info; }
+            set { _connection_info = value; core.SetConnection (value); }
+        }
+
         public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
         public int DefaultSyncInterval { get; set; } //in minutes
         
@@ -36,6 +40,7 @@ namespace WeeboxSync {
 
         public void SetWatcher(ref Watcher watch) {
             watcher = watch;
+            //watcher.Disable ();
         }
 
         /// <summary>
