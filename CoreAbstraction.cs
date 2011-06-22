@@ -599,6 +599,7 @@ namespace WeeboxSync {
             request.Method = "POST";
             request.Credentials = _client.TransportSettings.Credentials;
             request.PreAuthenticate = true;
+            request.Proxy = _client.TransportSettings.Proxy; 
             request.ContentType = contentType;
             request.ContentLength = formData.Length;  // We need to count how many bytes we're sending. 
             request.KeepAlive = true;
