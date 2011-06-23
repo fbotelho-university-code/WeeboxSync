@@ -9,7 +9,9 @@ namespace WeeboxSync {
         private ConnectionInfo _connection_info;
         public ConnectionInfo connection_info {
             get { return _connection_info; }
-            set { _connection_info = value; core.SetConnection (value); }
+            set { _connection_info = value; core.SetConnection(value);
+                bundle_serial_generator = value.serial_generator;
+            }
         }
 
         public String default_root_folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments); 
@@ -29,9 +31,11 @@ namespace WeeboxSync {
         private List<String> bundlesToUpdate;
 
         private Watcher watcher;
+        private Dictionary<string, DocType> docTypes;
 
         public WeeboxSync(){
             core = CoreAbstraction.getCore();
+            this.docTypes = core.docTypes; 
             fileSystem = new FicheiroSystemAbstraction();
             dataBase = new DataBaseAbstraction(); 
             bundlesToUpdate = new List<string> ();
@@ -39,7 +43,7 @@ namespace WeeboxSync {
 
         public void SetWatcher(ref Watcher watch) {
             watcher = watch;
-            //watcher.Disable ();
+            watcher.Enable ();
         }
         public bool setCredentials(string user, string pass)
         {
@@ -48,7 +52,10 @@ namespace WeeboxSync {
                 try
                 {
                     connection_info.user = new Utilizador(user, pass);
-                    dataBase.SaveConnectionInfo (connection_info);
+                    dataBase.SaveConnectionInfo(connection_info);
+                }
+                catch (Exception e) {
+                    
                 }
                 finally {
                     Monitor.Exit (SyncLock);
@@ -66,8 +73,9 @@ namespace WeeboxSync {
                     connection_info.proxy = proxy;
                     connection_info.useProxy = useProxy;
                     dataBase.SaveConnectionInfo(connection_info);
-                }
-                finally
+                }catch (Exception e) {
+                    
+                }finally
                 {
                     Monitor.Exit(SyncLock);
                 }
@@ -85,8 +93,11 @@ namespace WeeboxSync {
             try
             {
                 //só adicionamos o bundle se ele não estiver à espera de ser sincronizado
-                if(!bundlesToUpdate.Contains (bundleID))
+                if (!bundlesToUpdate.Contains(bundleID))
                     bundlesToUpdate.Add(bundleID);
+            }
+            catch (Exception e) {
+                
             }
             finally {
                 Monitor.Exit (BagLock);
@@ -105,9 +116,13 @@ namespace WeeboxSync {
             {//lock acquired
                 try {
                     watcher.Disable ();
-                    syncBundles ();
-                    watcher.Enable ();
-                } finally {
+                    syncBundles();
+                    watcher.Enable();
+                }
+                catch (Exception e) {
+                    
+                }
+                finally {
                     Monitor.Exit (SyncLock);
                 }
                 //tenta sincronizar bundles atrasados
@@ -123,19 +138,30 @@ namespace WeeboxSync {
         {
             if (Monitor.TryEnter(SyncLock))
             {
-                try {
-                    Monitor.Enter (BagLock);
-                    try {
-                        watcher.Disable ();
-                        foreach (var bundleID in bundlesToUpdate) {
-                            syncBundle (bundleID);
+                try
+                {
+                    Monitor.Enter(BagLock);
+                    try
+                    {
+                        watcher.Disable();
+                        foreach (var bundleID in bundlesToUpdate)
+                        {
+                            syncBundle(bundleID);
                         }
-                        watcher.Enable ();
-                    } finally {
+                        watcher.Enable();
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                    finally
+                    {
                         Monitor.Exit(BagLock);
                     }
                 }
-                finally {
+                catch (Exception e) {
+
+                } finally {
                     Monitor.Exit (SyncLock);
                 }
                 return true;
@@ -202,6 +228,7 @@ namespace WeeboxSync {
 
                 // save Schemes in bd 
                 IEnumerable<String> bundles = core.GetAllBundlesList();
+             //   dataBase.SaveClassificationScheme(this.scheme);
                 foreach (String weeId in bundles) {
                     CreateBundle(weeId);
                 }
@@ -287,12 +314,10 @@ namespace WeeboxSync {
             if (bundle_lastest_version_id == null){
                 //bundle foi eliminado do servidor
                 //delete bundle from db 
-                dataBase.DeleteBundle(bundle.localId);
-
                 //delete bundle from FS
-                fileSystem.DeleteRecursiveFolder(bundle.getPath(path_bundles));
-
-                    //deleting all the links to the bundle
+                try{
+                    fileSystem.DeleteRecursiveFolder(bundle.getPath(path_bundles));
+                    dataBase.DeleteBundle(bundle.localId);
                     foreach (String t in bundle.weeTags){
                         Tag tag;
                         if ((tag = Scheme.getTagByWeeIds(t, scheme)) != null){
@@ -301,35 +326,59 @@ namespace WeeboxSync {
                         //else .... -> if the tags have been removed we don't care.
                     }
                 return null;
+
+                }catch(Exception e){
+                    ; 
+                }
+
                 }
                 if (bundle_lastest_version_id == bundle.weeId){
-                    //Bundle doesn't has a new version on server
-                _sync_with_no_new_version(bundle);
+                    //Bundle doesn't have a new version on server
+                    _sync_with_no_new_version(bundle);
+                    Bundle bundle2 = core.GetLatestVersionFromServer (bundle_lastest_version_id);
+                    if (bundle2 != null)
+                        bundle2.localId = bundle.localId;
+                        generateBundleWebPage(bundle2);
                 return bundle_lastest_version_id;
             }
             else{
                 //bundle has a new version on server
                 _sync_with_new_version(bundle);
+                Bundle bundle2 = core.GetLatestVersionFromServer(bundle_lastest_version_id);
+                if (bundle2 != null) {
+                    bundle2.localId = bundle.localId;
+                    generateBundleWebPage (bundle2);
+                }
                 return bundle_lastest_version_id;
             }
-        }
 
+        }
 
         private bool _sync_with_new_version(Bundle bundle){
             //try catch 
-            List<Ficheiro> filesFS = fileSystem.getFicheirosFromFolder(bundle.getPath(path_bundles), bundle.localId);
-            Bundle bInfo = core.GetLatestVersionFromServer(bundle.weeId);
-            if (bInfo == null) return false; // WE SHOULD NOT EVEN BE HERE , DOESNT HAS A NEW VERSION ON SERVER. 
-            List<Ficheiro> filesCore = bInfo.filesPath;
-            List<Ficheiro> filesSync = dataBase.GetFicheirosIDS(bundle.localId);
+            List<Ficheiro> filesFS;
+            Bundle bInfo;
+            List<Ficheiro> filesCore; 
+            List<Ficheiro> filesSync; 
+            try{
+                 filesFS = fileSystem.getFicheirosFromFolder(bundle.getPath(path_bundles), bundle.localId);
+                 bInfo = core.GetLatestVersionFromServer(bundle.weeId);
+                if (bInfo == null) return false; // WE SHOULD NOT EVEN BE HERE , DOESNT HAS A NEW VERSION ON SERVER. 
+                 filesCore = bInfo.filesPath;
+                 filesSync = dataBase.GetFicheirosIDS(bundle.localId);
+            }catch(Exception e){
+                Console.Error.WriteLine(e);
+                return false; 
+            }
 
+            bool flag = true; // Indica que posso guardar sincronização com bundle mais recente. 
+            String oldBundleVersion = bundle.weeId; 
             String transformedBundleId = bInfo.weeId;
             // where whe apply the modifications and save the new bundle wee id.
 
-
             //Alterar ficheiros que APENAS mudaram de nome 
             transformedBundleId = _alterFileNames(ref bundle, ref filesFS, ref filesCore, ref filesSync,
-                                                  transformedBundleId);
+                                                  transformedBundleId, ref flag);
 
 
             List<Ficheiro> porTratarFS = new List<Ficheiro>(filesFS);
@@ -368,11 +417,12 @@ namespace WeeboxSync {
                     // if duplicate copy is true , we must treat the exception. 
                     // modificar o nome do ficheiro, fazer update no core,  sincronizar e retirar caso das listas. 
                     if (duplicate_copy){
-                        String toAppend = "_DuplicateCopy_" + DateTime.Now;
-                        String newPath = fileSystemFile.path + toAppend;
+                        String newPath = fileSystem.getDuplicateName(fileSystemFile.path);
+                        String newName = fileSystem.getName(newPath); 
+
                         String oldNAme = fileSystemFile.name;
                         String oldPath = fileSystemFile.path; 
-                        fileSystemFile.name = fileSystemFile.name + toAppend;
+                        fileSystemFile.name = newName ;
                         try{
                             fileSystem.RenameFile(oldPath, newPath);
                             fileSystemFile.path = newPath; 
@@ -404,6 +454,7 @@ namespace WeeboxSync {
                                 //Teremos um _DuplicateCopy_File que será considerado na próxima iteração. 
                                 ; 
                             }
+                            flag = false; 
                             continue; 
                         } 
                         filesCore.RemoveAll((Ficheiro x) => x.name == fileSystemFile.name);
@@ -442,6 +493,7 @@ namespace WeeboxSync {
                         dataBase.UpdateFicheiroInfo(fileSystemFile);
                         dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
                     }catch(Exception e){
+                        flag = false; 
                         continue;
                     }
                     finally{
@@ -460,6 +512,7 @@ namespace WeeboxSync {
                         dataBase.DeleteFicheiroInfo(fileSynced.md5, fileSynced.bundleId);
                     }
                     catch (Exception e){
+                        flag = false; 
                         continue;
                     }
                     finally{
@@ -515,6 +568,7 @@ namespace WeeboxSync {
                         dataBase.DeleteFicheiroInfo(fileSync.md5, bundle.localId);
                     }
                     catch (Exception e){
+                        flag = false; 
                         continue;
                     }
                     finally{
@@ -530,7 +584,17 @@ namespace WeeboxSync {
             foreach (Ficheiro fileSynced in filesSync){
                 dataBase.DeleteFicheiroInfo(fileSynced.md5, bundle.localId);
             }
-            dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
+            if (flag ){
+                try{
+                    dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
+                }catch(Exception e){
+                    flag = false; 
+                }
+            }
+            else{
+                // Foram encontrados erros durante sincronização. Desta forma força-se a que na próxima vez seja sincronizado por o has new version  
+                dataBase.UpdateWeeId(bundle.localId, oldBundleVersion);
+            }
             //TODO erase all updateweeIds above. 
             return true; 
         }
@@ -539,7 +603,7 @@ namespace WeeboxSync {
         private
             String _alterFileNames
             (ref Bundle bundle, ref List<Ficheiro> filesFS, ref List<Ficheiro> filesCore, ref List<Ficheiro> filesSync,
-             string bundleId)
+             string bundleId,ref bool flag )
             {
                 List<Ficheiro> copyFilesCore = filesCore;
                 String transformedBundleID = bundleId;
@@ -568,7 +632,8 @@ namespace WeeboxSync {
                         }
                         catch (Exception e){
                             // We could not rename the file 
-                            //ignoring file 
+                            //ignoring file
+                            flag = false; 
                             continue;
                         }
                     }
@@ -589,6 +654,7 @@ namespace WeeboxSync {
                             }
                             catch (Exception e){
                                 //we could not rename the file continue with sync; 
+                                flag = false; 
                                 continue; //outer loop , syncing other files. 
                             }
                         }
@@ -601,6 +667,7 @@ namespace WeeboxSync {
                                 dataBase.UpdateFicheiroInfo(newFile);
                             }
                             catch (Exception e){
+                                flag = false; 
                                 // We could not rename the file 
                                 //ignoring file 
                                 continue;
@@ -612,6 +679,61 @@ namespace WeeboxSync {
             }
 
 
+        public static String webPage1 =
+            @"<!DOCTYPE html PUBLIC ""-//W3C//DTD XHTML 1.0 Strict//EN"" ""http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\""> <html xmlns=""http://www.w3.org/1999/xhtml"" xml:lang=""en"" lang=""en"">    <head>        <meta http-equiv=""Content-Type"" content=""text/html; charset=utf-8"" />        <title>Weebox-Sync Bundle Metadata</title>        <link rel=""stylesheet"" type=""text/css"" href=""styles.css"" />""         
+</head>    <body>    	<div class=""section"" id=""page"">             <div class=""header"">  
+                        <h3>Weebox Metadata</h3>            </div>
+            <div class=""section"" id=""articles""> 
+
+                <div class=""article"" id=""article1"">   <div class=""line""></div> ";
+
+        public static String foot =
+            @"
+                    </div>
+                </div>
+            </div>
+        <div class=""footer""> 
+          <div class=""line""></div>
+           <p>Weebox Sync Powered</p> 
+           <a href=""#"" class=""up"">Go UP</a>
+           <a href=""http://www.uminho.pt/"" class=""by"">Grupo 10</a>
+        </div>
+		</div> 
+        <!-- JavaScript Includes -->
+        <script type=""text/javascript"" src=""http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js""></script>
+        <script type=""text/javascript"" src=""jquery.scrollTo-1.4.2/jquery.scrollTo-min.js""></script>
+        <script type=""text/javascript"" src=""script.js""></script>
+    </body>
+</html>"; 
+        public void generateBundleWebPage(Bundle b){
+            string filePath = "\\fold\\" + b.weeId + ".html"; 
+            try{
+                FileStream st =new FileStream(filePath, FileMode.Create); 
+                using (StreamWriter  streamOut = new StreamWriter(st)){              
+                    streamOut.WriteLine(webPage1);
+                    streamOut.WriteLine("<h2>" +  b.type.label+ " </h2> <div class=\"articleBody clear>\"");
+
+                    foreach (DocType.Field f in b.type.fields ){
+                        if (b.meta.keyValueData.ContainsKey(f.id)){
+                            string s = b.meta.keyValueData[f.id]; 
+                            if (s!= "" && f.type != "vocabulary"){
+                                streamOut.WriteLine("<span title=\"" + f.description + "\">" + "<h4><b>" + f.label  + "</b></h4></span>");
+                                streamOut.WriteLine("<p>" + s + "</p>");
+                                streamOut.WriteLine(@"<div class=""line""></div>");
+                            }
+                        }
+                    }
+                    streamOut.WriteLine(foot);
+                    if (File.Exists(b.getPath(path_bundles) + "\\" + "View Metadata")){
+                        File.Delete(b.getPath(path_bundles) + "\\" + "View Metadata");
+                    }
+                    fileSystem.CreateROLink(b.getPath(path_bundles), filePath, "View Metadata");
+                }
+            }catch(Exception e ){
+                return; 
+            }
+
+        }
         
         private bool _sync_with_no_new_version(Bundle bundle){
             List<Ficheiro> filesFs;
@@ -635,20 +757,26 @@ namespace WeeboxSync {
                 filesFs.FindAll(
                     (Ficheiro fsFile) =>
                     filesLastSync.Exists(
-                        (Ficheiro syncFile) => syncFile.md5 == fsFile.md5 && syncFile.name != fsFile.name));
+                        (Ficheiro syncFile) => (syncFile.md5 == fsFile.md5) && (syncFile.name != fsFile.name)));
             foreach (Ficheiro newNameFile in newNameFiles){
                 //eliminar e adicionar ficheiro é a unica forma de renomear o ficheiro
                 Ficheiro syncFile = filesLastSync.Find((Ficheiro x) => x.md5 == newNameFile.md5);
-                Tuple<String, List<String>> removedInfo = core.RemoveFicheiro(bundle.weeId, newNameFile.md5);
-                bundleTransformedId = removedInfo.Item1; 
-                dataBase.UpdateWeeId(bundle.localId, bundleTransformedId);
-                if (removedInfo.Item2.Count == 0){
-                    dataBase.DeleteFicheiroInfo(newNameFile.md5, bundle.localId); 
-                    bundleTransformedId = core.PutFicheiro(bundleTransformedId, newNameFile);
-                    dataBase.UpdateWeeId(bundle.localId, bundleTransformedId);                    
-                    dataBase.SaveFicheiroInfo(newNameFile);
+                try{
+                    Tuple<String, List<String>> removedInfo = core.RemoveFicheiro(bundle.weeId, newNameFile.md5);
+                    bundleTransformedId = removedInfo.Item1;
+                    dataBase.UpdateWeeId(bundle.localId, bundleTransformedId);
+                    if (removedInfo.Item2.Count == 0){
+                        dataBase.DeleteFicheiroInfo(newNameFile.md5, bundle.localId);
+                        bundleTransformedId = core.PutFicheiro(bundleTransformedId, newNameFile);
+                        dataBase.UpdateWeeId(bundle.localId, bundleTransformedId);
+                        dataBase.SaveFicheiroInfo(newNameFile);
+                    }
+                }catch(Exception e){
+                    Console.WriteLine(e.Message);
+                    continue; 
                 }
             }
+
             // ficheiros só no file system
             foreach (Ficheiro file in filesFs){
                 //if file only exists in file system 
@@ -713,6 +841,7 @@ namespace WeeboxSync {
                 }
             }
             dataBase.SaveBundle(b);
+            generateBundleWebPage(b);
             return true; //has created bundle
         }
                 public void GetNewBundles() {

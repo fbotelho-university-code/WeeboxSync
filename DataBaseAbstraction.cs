@@ -338,18 +338,18 @@ namespace WeeboxSync {
             proxy = conI.proxy != null ? conI.proxy.ToString() : string.Empty;
 
             string[] par = { conI.user.user, conI.user.pass, conI.address.ToString (), proxy,
-                             conI.useProxy.ToString ()};
+                             conI.useProxy.ToString (), conI.serial_generator.ToString()};
             if (set) {
                 //operation : update
                 query = new SqlCommand(string.Format(
                     "update utilizador set " +
-                    "username='{0}',password='{1}', server='{2}', proxy='{3}', useProxy='{4}'", par), con);
+                    "username='{0}',password='{1}', server='{2}', proxy='{3}', useProxy='{4}', serial_generator ='{5}'", par), con);
             }
             else {
                 //operation : insert
                 query = new SqlCommand(string.Format(
-                    "insert into utilizador (username, password, server, proxy, useProxy) " +
-                    "values ( '{0}', '{1}', '{2}', '{3}', '{4}')", par), con);
+                    "insert into utilizador (username, password, server, proxy, useProxy, serial_generator) " +
+                    "values ( '{0}', '{1}', '{2}', '{3}', '{4}', '{5}')", par), con);
             }
             query.ExecuteNonQuery();
             con.Close();
@@ -367,7 +367,7 @@ namespace WeeboxSync {
             SqlConnection con = new SqlConnection(connectionString);
             con.Open();
             SqlCommand query = new SqlCommand(string.Format(
-                "SELECT username, password, server, proxy FROM utilizador WHERE username = '{0}'", username), con);
+                "SELECT username, password, server, proxy, serial_generator FROM utilizador WHERE username = '{0}'", username), con);
             SqlDataReader reader = query.ExecuteReader();
             if (reader.Read()) { //only the first occurrence
                 Utilizador user = new Utilizador(reader.GetString(0), reader.GetString(1));
@@ -381,6 +381,8 @@ namespace WeeboxSync {
                     //no proxy
                     conInfo = new ConnectionInfo(user, server);
                 }
+                int defaultInt = reader.GetInt32 (4);
+                conInfo.serial_generator = defaultInt;
             }
             reader.Close();
             con.Close();

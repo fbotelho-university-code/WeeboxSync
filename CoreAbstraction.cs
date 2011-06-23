@@ -36,7 +36,7 @@ namespace WeeboxSync {
     }
 
 
-    public class HttpError : Exception{
+    public class HttpError : ApplicationException{
         public  HttpStatusCode statusCode; 
         public string context; 
         public HttpError(HttpStatusCode statusCode, string context){
@@ -50,8 +50,6 @@ namespace WeeboxSync {
         private static CoreAbstraction core = null;
         private CoreAbstraction() { }
         public Dictionary<String, DocType> docTypes = new Dictionary<string, DocType>();
-
-
         /// <summary>
         /// Instantiate private Core Abstraction 
         /// </summary>

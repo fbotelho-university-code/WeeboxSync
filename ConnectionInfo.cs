@@ -7,11 +7,13 @@ namespace WeeboxSync {
         public Uri address { get; set; }
         public Uri proxy { get; set; }
         public bool useProxy { get; set; }  // guardar na bd também 
+        public long serial_generator;
 
         public ConnectionInfo(){
             user = new Utilizador ("", "");
             this.proxy  = null;
             this.address  = null;
+
         }
         public ConnectionInfo( Utilizador u , string server, string proxy){
             this.user = u;

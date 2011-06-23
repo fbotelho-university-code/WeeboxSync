@@ -24,6 +24,7 @@ namespace WeeboxSync {
             watcher.Renamed += OnChanged;
             
             watcher.IncludeSubdirectories = true;
+            Enable ();
         }
 
         public void Enable() {

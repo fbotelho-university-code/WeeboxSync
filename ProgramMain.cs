@@ -183,9 +183,9 @@ namespace WeeboxSync
         private static void CheckSync() {
             Thread.Sleep (TimeSpan.FromMinutes (_defaultInterval));
             while(true) {
-                var res = MessageBox.Show ("Starting automated sync now.\nProceed?", "Automated sync", MessageBoxButtons.OKCancel,
-                                 MessageBoxIcon.Question);
-                if(res == DialogResult.OK) 
+                //var res = MessageBox.Show ("Starting automated sync now.\nProceed?", "Automated sync", MessageBoxButtons.OKCancel,
+                 //                MessageBoxIcon.Question);
+                //if(res == DialogResult.OK) 
                     Weebox.SynchronizeAll();
                 Thread.Sleep(TimeSpan.FromMinutes(_defaultInterval));
             }
@@ -286,7 +286,20 @@ namespace WeeboxSync
                         //setup successful, go to download
                         SaveRegistryKeys ();
                         DataBaseAbstraction dba = new DataBaseAbstraction ();
-                        dba.SaveConnectionInfo (Weebox.connection_info);
+                        try
+                        {
+                            dba.SaveConnectionInfo(Weebox.connection_info);
+                        }
+                        catch (Exception e) {
+                            //eliminar chaves de registo
+                            DeleteRegistryKeys();
+                            //eliminar pasta root
+                            fsa.DeleteRecursiveFolder(Weebox.getRootFolder());
+                            MessageBox.Show(
+                                "Setup falhou. Por favor inicie novamente a aplicação, verifique os dados inseridos e tente novamente",
+                                "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
+                        }
                         DownloadWait dw = new DownloadWait (ref Weebox);
                         var res = dw.ShowDialog ();
                         if(res == DialogResult.Cancel) {
