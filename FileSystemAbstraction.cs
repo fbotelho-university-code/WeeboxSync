@@ -118,9 +118,9 @@ namespace WeeboxSync {
                     if ((System.IO.File.GetAttributes(fpath) & System.IO.FileAttributes.Hidden) != System.IO.FileAttributes.Hidden)
                     {
                         if (getName(fpath) != "View Metadata.lnk") {
-                            Ficheiro file = new Ficheiro(fpath, bundleId, true);
-                            files.Add(file);    
-                        }
+                        Ficheiro file = new Ficheiro(fpath, bundleId, true);
+                        files.Add(file);
+                    }
                     }
                 }
                 catch (Exception e){

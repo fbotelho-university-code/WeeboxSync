@@ -775,7 +775,8 @@ namespace WeeboxSync {
                     Console.WriteLine(e.Message);
                     continue; 
                 }
-            }
+                }
+
 
             // ficheiros só no file system
             foreach (Ficheiro file in filesFs){
