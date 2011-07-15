@@ -3,7 +3,7 @@ using System.Windows.Forms;
 
 namespace WeeboxSync
 {
-    using System.Threading;
+   using System.Threading;
     using Microsoft.Win32;
 
     class ProgramMain
@@ -154,11 +154,10 @@ namespace WeeboxSync
             Bundle received = dba.getBundle (bid);
 
             IList<Ficheiro> listFicheiros = dba.GetFicheirosIDS (bid);
-            */
-
+          
             #endregion
         }
-
+        
         private static void StartWatcher()
         {
             Watcher w = new Watcher(ref Weebox, Weebox.getRootFolder () + @"\Bundles");
@@ -317,6 +316,7 @@ namespace WeeboxSync
                         }
                         cont = false;
                         break;
+
                     case 5:
                         // all tasks done, exit
                         

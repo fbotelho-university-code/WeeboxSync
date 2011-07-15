@@ -344,8 +344,8 @@ namespace WeeboxSync {
             else{
                 //bundle has a new version on server
                 _sync_with_new_version(bundle);
-                Bundle bundle2 = core.GetLatestVersionFromServer(bundle_lastest_version_id);
-                if (bundle2 != null) {
+                Bundle b = core.getBundleInfo(bundle_lastest_version_id); 
+                generateBundleWebPage(b);
                     bundle2.localId = bundle.localId;
                     generateBundleWebPage (bundle2);
                 }
@@ -726,8 +726,8 @@ namespace WeeboxSync {
                     streamOut.WriteLine(foot);
                     if (File.Exists(b.getPath(path_bundles) + "\\" + "View Metadata")){
                         File.Delete(b.getPath(path_bundles) + "\\" + "View Metadata");
+                        fileSystem.CreateROLink(b.getPath(path_bundles), filePath, "View Metadata");
                     }
-                    fileSystem.CreateROLink(b.getPath(path_bundles), filePath, "View Metadata");
                 }
             }catch(Exception e ){
                 return; 
