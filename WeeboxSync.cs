@@ -392,6 +392,8 @@ namespace WeeboxSync {
                 Ficheiro fileCored = filesCore.Find((Ficheiro x) => x.md5 == fileSystemFile.md5);
                 bool duplicate_copy = false;
 
+
+
                 if (fileSynced == null && fileCored == null){
                     // Id do ficheiro só existe no fileSystem! 
 
