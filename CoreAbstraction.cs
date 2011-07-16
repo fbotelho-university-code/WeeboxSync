@@ -88,6 +88,7 @@ namespace WeeboxSync {
             while (bo) {
                 try {
                     resp = _client.Get("manager/api?operation=getThesauri");
+                    resp.EnsureStatusIsSuccessful(); 
                     bo = false;
                 }
                 catch (HttpStageProcessingException e) {
@@ -95,7 +96,7 @@ namespace WeeboxSync {
                 }
             }
 
-            _checkAndThrowsExceptions(resp.StatusCode, "getSchemesFromServer");
+                       _checkAndThrowsExceptions(resp.StatusCode, "getSchemesFromServer");
             String schemes = resp.Content.ReadAsString();
             String[] planos = schemes.Split('\n');
             List<Scheme> lista = new List<Scheme>();
@@ -122,10 +123,9 @@ namespace WeeboxSync {
                 catch (HttpStageProcessingException e) {
                     continue;
                 }
+
             }
-
-
-            resp.EnsureStatusIsSuccessful();
+            _checkAndThrowsExceptions(resp.StatusCode, "getSchemeFromServer");
             Stream s = resp.Content.ReadAsStream();
             // TODO - validate xml answer. 
             XDocument classifications = XDocument.Load(s);
@@ -158,20 +158,22 @@ namespace WeeboxSync {
         /// Gets all Bundles specified as owned by the user established in this class
         /// </summary>
         /// <returns>Null if none present</returns>
-        public List<String> GetAllBundlesList() {
+        public List<String> GetAllBundlesList(){
             HttpResponseMessage resp = null;
             bool bo = true;
             while (bo) {
                 try {
                     resp = _client.Get("core/bundle/?operation=searchRetrieve&version=1.1&query=bundle.owner+=+%22" +
                             this._conInfo.user.user + "%22");
+
+                    _checkAndThrowsExceptions(resp.StatusCode, "GetAllBundlesList");
                     bo = false;
                 }
                 catch (HttpStageProcessingException e) {
                     continue;
                 }
             }
-            resp.EnsureStatusIsSuccessful();
+
             Stream s = resp.Content.ReadAsStream();
             // TODO - validate xml answer. 
             XDocument classifications = XDocument.Load(s);
@@ -193,7 +195,6 @@ namespace WeeboxSync {
 
         }
 
-
         public MetaData GetMetaFromBundle(String bundleid) {
             try {
 
@@ -203,6 +204,7 @@ namespace WeeboxSync {
                     try {
                         resp =
                             _client.Get("core/bundle/" + bundleid + "?operation=retrieveBundleMetadata");
+                                            _checkAndThrowsExceptions(resp.StatusCode, "GetAllBundlesList");
                         bo = false;
                     }
                     catch (HttpStageProcessingException e) {
@@ -234,6 +236,8 @@ namespace WeeboxSync {
                 while (bo) {
                     try {
                         resp = _client.Get("core/bundle/" + bundleid + "?operation=retrieveAllMetadata");
+
+                        _checkAndThrowsExceptions(resp.StatusCode, "GetAllMetaFromBundle");
                         bo = false;
                     }
                     catch (HttpStageProcessingException e) {
@@ -293,6 +297,7 @@ namespace WeeboxSync {
                         while (bo) {
                             try {
                                 resp = _client.Get("core/file/" + bundleId + "/" + fid + "?operation=retrieveFileMetadata");
+                                                    _checkAndThrowsExceptions(resp.StatusCode, "extract files info");  
                                 bo = false;
                             }
                             catch (HttpStageProcessingException e) {
@@ -300,7 +305,7 @@ namespace WeeboxSync {
                             }
                         }
                     }
-                    _checkAndThrowsExceptions(resp.StatusCode, "retrieve bunle info");
+
 
                     //parse file names 
                     String s = resp.Content.ReadAsString();
@@ -344,6 +349,14 @@ namespace WeeboxSync {
                 try {
                     resp =
                         _client.Get("core/bundle/" + bundleId + "?encodeFileName=true");
+                    if (resp.StatusCode != HttpStatusCode.OK)
+                        if ((resp.StatusCode == HttpStatusCode.NotFound ) && (toBeBundle.filesPath.Count  == 0  )){
+                            
+                        }
+                        else{
+                                            _checkAndThrowsExceptions(resp.StatusCode, "getBundle"); 
+                        }
+
                     bo = false;
                 }
                 catch (HttpStageProcessingException e) {
@@ -401,14 +414,17 @@ namespace WeeboxSync {
 
         public Dictionary<String, DocType> getDocTypes() {
             HttpResponseMessage resp = _client.Get("manager/api?operation=getDocTypes");
-            resp.EnsureStatusIsSuccessful();
+            _checkAndThrowsExceptions(resp.StatusCode, "getDocTypes"); 
+
+            //resp.EnsureStatusIsSuccessful();
             String[] docs = resp.Content.ReadAsString().Split('\n');
             Dictionary<String, DocType> map = new Dictionary<String, DocType>();
 
             for (int i = 0; i < docs.Length; i++) {
                 if (docs[i] != "") {
                     resp = _client.Get("manager/api?operation=getDocType&docType=" + docs[i]);
-                    resp.EnsureStatusIsSuccessful();
+                    _checkAndThrowsExceptions(resp.StatusCode, "getting doc types"); 
+//                    resp.EnsureStatusIsSuccessful();
                     DocType doc = DocType.readAsXelement(resp.Content.ReadAsXElement());
                     if (doc != null) {
                         map.Add(doc.id, doc);
@@ -706,12 +722,17 @@ namespace WeeboxSync {
                 try{
                     resp =
                         _client.Get("core/file/" + bundleId + "/ " + md5 + "?encodeFileName=true");
+                                _checkAndThrowsExceptions(resp.StatusCode, "download file"); 
+//                    resp.EnsureStatusIsSuccessful(); 
                     bo = false;
+                    
                 }
+
                 catch (HttpStageProcessingException e){
                     continue;
                 }
             }
+
             Stream files = resp.Content.ReadAsStream();
             string file_path = downloadPath;
             FileStream f = File.OpenWrite(file_path);

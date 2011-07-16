@@ -6,8 +6,8 @@ namespace WeeboxSync {
     public class DataBaseAbstraction {
 
         private static string ROOT_TAG = "rootScheme_trashFiller";
-        //private static string connectionString = "Server=FABIIM-PC\\SQLEXPRESS;Database=master;Trusted_Connection=True;"; 
-        private static string connectionString = "Data Source=(local);Integrated Security=True";
+        private static string connectionString = "Server=FABIIM-PC\\SQLEXPRESS;Database=master;Trusted_Connection=True;"; 
+        //private static string connectionString = "Data Source=(local);Integrated Security=True";
         //TODO - tocha - change return on error to ArgumentNullException()
         /**
          * retrieves the classification scheme of this weebox server instance

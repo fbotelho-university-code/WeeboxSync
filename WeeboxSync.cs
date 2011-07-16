@@ -210,6 +210,7 @@ namespace WeeboxSync {
         public void setDefaultRootFolder(){
             this.setRootFolder(this.default_root_folder); 
         }
+
         /// <summary>
         /// Downloads all the schemes and bundles in the server. All info needed for the process should be set
         /// </summary>
@@ -217,7 +218,6 @@ namespace WeeboxSync {
                 core.SetConnection(this.connection_info);
                 List<Scheme> schemes = core.getSchemesFromServer();
                 this.scheme = schemes;
-
                 foreach (Scheme sch in schemes) {
                     Tag root = sch.arvore.getRoot();
                     Directory.CreateDirectory(this.path_schemes + "\\" + root.Path);
@@ -429,7 +429,9 @@ namespace WeeboxSync {
                             fileSystem.RenameFile(oldPath, newPath);
                             fileSystemFile.path = newPath; 
                             transformedBundleId = core.PutFicheiro(transformedBundleId, fileSystemFile);
-                            dataBase.DeleteFicheiroInfo(fileSyncedSameName.md5, bundle.localId);
+                            if (fileSyncedSameName != null){
+                                dataBase.DeleteFicheiroInfo(fileSyncedSameName.md5, bundle.localId);
+                            }
                             dataBase.SaveFicheiroInfo(fileSystemFile);
                             dataBase.UpdateFicheiroInfo(fileSystemFile);
                             dataBase.UpdateWeeId(bundle.localId, transformedBundleId);
@@ -553,7 +555,7 @@ namespace WeeboxSync {
                             core.GetFicheiro(transformedBundleId, fileCored.md5, file_path);
                         }
                     }
-                    catch{
+                    catch(Exception e ) {
                         continue;
                     }
                     finally{
